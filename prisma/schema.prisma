@@ -1,0 +1,56 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  profile   UserProfile?
+
+  @@map("users")
+}
+
+model UserProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Step 1: Basic Info
+  name      String
+  age       Int
+
+  // Step 2: Education & Occupation
+  educationLevel String  // "High School", "Bachelor's", "Master's", "PhD", "Other"
+  occupation     String
+
+  // Step 3: Learning Preferences
+  learningGoals  String   // Text description
+  subjects       String[] // Array of subjects
+  learningStyle  String   // "Visual", "Auditory", "Kinesthetic", "Reading-Writing"
+
+  // Step 4: Experience & Challenges
+  previousExperience String // Text description
+  strengths          String // Text description
+  weaknesses         String // Text description
+  specificChallenges String // Text description
+
+  // Step 5: Time & Pace
+  availableHoursPerWeek Int     // 1-40
+  learningPace          String  // "Slow", "Medium", "Fast"
+  motivationLevel       String  // "Low", "Medium", "High"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_profiles")
+}

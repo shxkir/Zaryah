@@ -1,0 +1,39 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+
+# Prisma
+prisma/migrations/
+
+# Flutter
+flutter-app/.dart_tool/
+flutter-app/.flutter-plugins
+flutter-app/.flutter-plugins-dependencies
+flutter-app/.packages
+flutter-app/build/
+flutter-app/.pub-cache/
+flutter-app/.pub/
+flutter-app/ios/Pods/
+flutter-app/ios/.symlinks/
+flutter-app/ios/Flutter/Flutter.framework
+flutter-app/ios/Flutter/Flutter.podspec
+flutter-app/.ios/
+flutter-app/.android/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
