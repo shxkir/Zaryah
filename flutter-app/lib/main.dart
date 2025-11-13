@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
-import 'screens/chatbot_screen.dart';
+import 'screens/home_screen.dart';
 import 'services/api_service.dart';
 
 void main() {
@@ -136,7 +136,7 @@ class _SplashScreenState extends State<SplashScreen> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) =>
-              isLoggedIn ? const ChatbotScreen() : const LoginScreen(),
+              isLoggedIn ? const HomeScreen() : const LoginScreen(),
         ),
       );
     }

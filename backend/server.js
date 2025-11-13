@@ -371,6 +371,256 @@ User Question: ${query}`;
   }
 });
 
+// POST /api/messages/send - Send a message (protected)
+app.post('/api/messages/send', authenticateToken, async (req, res) => {
+  try {
+    const { receiverId, text } = req.body;
+    const senderId = req.user.userId;
+
+    if (!receiverId || !text) {
+      return res.status(400).json({ error: 'receiverId and text are required' });
+    }
+
+    // Check if receiver exists
+    const receiver = await prisma.user.findUnique({
+      where: { id: receiverId },
+    });
+
+    if (!receiver) {
+      return res.status(404).json({ error: 'Receiver not found' });
+    }
+
+    // Create message
+    const message = await prisma.message.create({
+      data: {
+        senderId,
+        receiverId,
+        text,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { name: true } },
+          },
+        },
+        receiver: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    res.status(201).json({ message: 'Message sent successfully', data: message });
+  } catch (error) {
+    console.error('Send message error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// GET /api/messages/conversations - Get all conversations for current user (protected)
+app.get('/api/messages/conversations', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    // Get all unique conversations
+    const messages = await prisma.message.findMany({
+      where: {
+        OR: [{ senderId: userId }, { receiverId: userId }],
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { name: true } },
+          },
+        },
+        receiver: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Group by conversation partner
+    const conversationsMap = new Map();
+
+    messages.forEach(msg => {
+      const partnerId = msg.senderId === userId ? msg.receiverId : msg.senderId;
+      const partner = msg.senderId === userId ? msg.receiver : msg.sender;
+
+      if (!conversationsMap.has(partnerId)) {
+        conversationsMap.set(partnerId, {
+          partnerId,
+          partnerName: partner.profile?.name || partner.email,
+          partnerEmail: partner.email,
+          lastMessage: msg.text,
+          lastMessageTime: msg.createdAt,
+          unreadCount: 0,
+        });
+      }
+
+      // Count unread messages
+      if (msg.receiverId === userId && !msg.read) {
+        conversationsMap.get(partnerId).unreadCount++;
+      }
+    });
+
+    const conversations = Array.from(conversationsMap.values());
+
+    res.json({ conversations });
+  } catch (error) {
+    console.error('Get conversations error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// GET /api/messages/:partnerId - Get messages with a specific user (protected)
+app.get('/api/messages/:partnerId', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { partnerId } = req.params;
+
+    // Get all messages between these two users
+    const messages = await prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: userId, receiverId: partnerId },
+          { senderId: partnerId, receiverId: userId },
+        ],
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { name: true } },
+          },
+        },
+        receiver: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Mark messages as read
+    await prisma.message.updateMany({
+      where: {
+        senderId: partnerId,
+        receiverId: userId,
+        read: false,
+      },
+      data: { read: true },
+    });
+
+    res.json({ messages });
+  } catch (error) {
+    console.error('Get messages error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// GET /api/profile/me - Get current user's profile (protected)
+app.get('/api/profile/me', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true },
+      select: {
+        id: true,
+        email: true,
+        createdAt: true,
+        profile: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error('Get current profile error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// PUT /api/profile/me - Update current user's profile (protected)
+app.put('/api/profile/me', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const {
+      name,
+      age,
+      bio,
+      profilePicture,
+      educationLevel,
+      occupation,
+      learningGoals,
+      subjects,
+      learningStyle,
+      previousExperience,
+      strengths,
+      weaknesses,
+      specificChallenges,
+      availableHoursPerWeek,
+      learningPace,
+      motivationLevel,
+    } = req.body;
+
+    // Update profile
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        profile: {
+          update: {
+            ...(name && { name }),
+            ...(age && { age: parseInt(age) }),
+            ...(bio !== undefined && { bio }),
+            ...(profilePicture !== undefined && { profilePicture }),
+            ...(educationLevel && { educationLevel }),
+            ...(occupation && { occupation }),
+            ...(learningGoals && { learningGoals }),
+            ...(subjects && { subjects }),
+            ...(learningStyle && { learningStyle }),
+            ...(previousExperience && { previousExperience }),
+            ...(strengths && { strengths }),
+            ...(weaknesses && { weaknesses }),
+            ...(specificChallenges && { specificChallenges }),
+            ...(availableHoursPerWeek && { availableHoursPerWeek: parseInt(availableHoursPerWeek) }),
+            ...(learningPace && { learningPace }),
+            ...(motivationLevel && { motivationLevel }),
+          },
+        },
+      },
+      include: {
+        profile: true,
+      },
+    });
+
+    res.json({ message: 'Profile updated successfully', user: updatedUser });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Zaryah API is running' });

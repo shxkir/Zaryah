@@ -131,4 +131,165 @@ class ApiService {
   Future<void> logout() async {
     await removeToken();
   }
+
+  // Get all users
+  Future<List<Map<String, dynamic>>> getAllUsers() async {
+    final token = await getToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/users'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return List<Map<String, dynamic>>.from(data['users']);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to fetch users');
+    }
+  }
+
+  // Get user by ID
+  Future<Map<String, dynamic>> getUserById(String userId) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/$userId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['user'];
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to fetch user');
+    }
+  }
+
+  // Send message
+  Future<Map<String, dynamic>> sendMessage({
+    required String receiverId,
+    required String text,
+  }) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/messages/send'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'receiverId': receiverId,
+        'text': text,
+      }),
+    );
+
+    if (response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to send message');
+    }
+  }
+
+  // Get conversations
+  Future<List<Map<String, dynamic>>> getConversations() async {
+    final token = await getToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/messages/conversations'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return List<Map<String, dynamic>>.from(data['conversations']);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to fetch conversations');
+    }
+  }
+
+  // Get messages with a user
+  Future<List<Map<String, dynamic>>> getMessages(String partnerId) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/messages/$partnerId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return List<Map<String, dynamic>>.from(data['messages']);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to fetch messages');
+    }
+  }
+
+  // Get current user's profile
+  Future<Map<String, dynamic>> getCurrentProfile() async {
+    final token = await getToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/profile/me'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['user'];
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to fetch profile');
+    }
+  }
+
+  // Update current user's profile
+  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> profileData) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/profile/me'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(profileData),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['user'];
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to update profile');
+    }
+  }
 }
