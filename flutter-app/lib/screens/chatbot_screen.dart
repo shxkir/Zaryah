@@ -32,14 +32,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   void initState() {
     super.initState();
     _addBotMessage(
-      'Hello! I\'m Zarayah AI assistant. I have complete access to all user profiles and learning data. '
-      'You can ask me things like:\n'
-      '• "Tell me about Sarah Johnson"\n'
-      '• "Which users are interested in Machine Learning?"\n'
-      '• "Compare Sarah and Michael"\n'
-      '• "Show me statistics about our users"\n'
-      '• "What is Michael\'s biggest challenge?"\n'
-      '• "Who has the most available time?"',
+      'Hello! I\'m Zaryah AI, your educational assistant. How may I help you today?',
     );
   }
 

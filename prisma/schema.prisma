@@ -15,42 +15,43 @@ model User {
   email     String   @unique
   password  String
   createdAt DateTime @default(now())
-  profile   UserProfile?
+  updatedAt DateTime @updatedAt
+  profile   Profile?
 
   @@map("users")
 }
 
-model UserProfile {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Profile {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Step 1: Basic Info
-  name      String
-  age       Int
+  // Basic Information
+  name                  String
+  age                   Int
 
-  // Step 2: Education & Occupation
-  educationLevel String  // "High School", "Bachelor's", "Master's", "PhD", "Other"
-  occupation     String
+  // Education & Career
+  educationLevel        String
+  occupation            String
 
-  // Step 3: Learning Preferences
-  learningGoals  String   // Text description
-  subjects       String[] // Array of subjects
-  learningStyle  String   // "Visual", "Auditory", "Kinesthetic", "Reading-Writing"
+  // Learning Preferences
+  learningGoals         String
+  subjects              String[]
+  learningStyle         String
+  previousExperience    String
 
-  // Step 4: Experience & Challenges
-  previousExperience String // Text description
-  strengths          String // Text description
-  weaknesses         String // Text description
-  specificChallenges String // Text description
+  // Strengths & Challenges
+  strengths             String
+  weaknesses            String
+  specificChallenges    String
 
-  // Step 5: Time & Pace
-  availableHoursPerWeek Int     // 1-40
-  learningPace          String  // "Slow", "Medium", "Fast"
-  motivationLevel       String  // "Low", "Medium", "High"
+  // Time & Motivation
+  availableHoursPerWeek Int      @default(5)
+  learningPace          String   @default("Medium")
+  motivationLevel       String   @default("Medium")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
-  @@map("user_profiles")
+  @@map("profiles")
 }

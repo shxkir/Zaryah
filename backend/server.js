@@ -1,10 +1,10 @@
-require('dotenv').config();
+require('dotenv').config({ override: true });
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 const {
   initializePineconeIndex,
   storeUserInPinecone,
@@ -14,7 +14,7 @@ const {
 
 const app = express();
 const prisma = new PrismaClient();
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -333,21 +333,31 @@ app.post('/api/chatbot', authenticateToken, async (req, res) => {
       usersData = users;
     }
 
-    // Create prompt with user data context for Gemini
-    const prompt = `You are an AI assistant for Zaryah, an educational platform. You have access to user data and can answer questions about users and their learning profiles.
+    // Create prompt with user data context
+    const prompt = `You are Zaryah AI, an intelligent educational assistant for the Zaryah platform. You have access to student data and can help answer questions about users and their learning profiles.
 
-Here is the complete user database:
+IMPORTANT INSTRUCTIONS:
+- If the user greets you or says hello, respond warmly: "Hello! I'm Zaryah AI, your educational assistant. How may I help you today?"
+- ONLY provide user information when specifically asked about a user, users, or learning data
+- Do NOT volunteer information about users unless explicitly requested
+- Keep responses concise and helpful
+- When asked about a specific user, provide relevant details from their profile
+- When asked for statistics or comparisons, format them clearly
+
+Here is the user database (ONLY use this when the user asks about users):
 
 ${JSON.stringify(usersData, null, 2)}
 
-Answer questions about users, their learning profiles, interests, goals, and statistics. Provide detailed, structured, and helpful responses. When comparing users or showing statistics, format your response clearly with relevant details.
-
 User Question: ${query}`;
 
-    // Call Google Gemini API
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-    const result = await model.generateContent(prompt);
-    const response = result.response.text();
+    // Call Groq API
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [{ role: 'user', content: prompt }],
+      model: 'llama-3.3-70b-versatile',
+      temperature: 0.7,
+      max_tokens: 1024,
+    });
+    const response = chatCompletion.choices[0]?.message?.content || 'No response generated';
 
     res.json({
       query,
