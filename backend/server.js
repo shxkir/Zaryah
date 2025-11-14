@@ -4,7 +4,9 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
-const Groq = require('groq-sdk');
+const OpenAI = require('openai');
+const emailjs = require('@emailjs/nodejs');
+const crypto = require('crypto');
 const {
   initializePineconeIndex,
   storeUserInPinecone,
@@ -14,10 +16,22 @@ const {
 
 const app = express();
 const prisma = new PrismaClient();
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+// EmailJS Configuration
+const EMAILJS_SERVICE_ID = 'service_dknkiv9';
+const EMAILJS_TEMPLATE_ID = 'template_bf0zmmn';
+const EMAILJS_PUBLIC_KEY = 'c5CEubgqvcGAXMmUe';
+const EMAILJS_PRIVATE_KEY = 'mg58cX4sZL-BLpKRSfZ8L';
+
+// In-memory storage for password reset tokens (in production, use Redis or database)
+const resetTokens = new Map(); // Map<token, {email, expiresAt}>
 
 // Initialize Pinecone on startup
 let pineconeReady = false;
@@ -200,20 +214,144 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// POST /api/forgot-password - Request password reset
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { profile: true }
+    });
+
+    if (!user) {
+      // For security, don't reveal if email exists or not
+      return res.json({
+        message: 'If an account exists with this email, a password reset link has been sent.'
+      });
+    }
+
+    // Generate secure reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = Date.now() + 3600000; // 1 hour from now
+
+    // Store token in memory (in production, use database or Redis)
+    resetTokens.set(resetToken, {
+      email: user.email,
+      expiresAt
+    });
+
+    // Send email using EmailJS
+    try {
+      await emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        {
+          to_email: user.email,
+          user_name: user.profile?.name || user.email,
+          reset_token: resetToken,
+          reset_link: `http://localhost:3000/reset-password?token=${resetToken}`,
+          expires_in: '1 hour'
+        },
+        {
+          publicKey: EMAILJS_PUBLIC_KEY,
+          privateKey: EMAILJS_PRIVATE_KEY,
+        }
+      );
+
+      console.log(`✅ Password reset email sent to ${user.email}`);
+
+      res.json({
+        message: 'If an account exists with this email, a password reset link has been sent.',
+        token: resetToken, // Send token for testing
+        success: true
+      });
+    } catch (emailError) {
+      console.error('❌ EmailJS error:', emailError.message || emailError);
+
+      // Still return success but provide token for testing since email might not work in development
+      console.log(`⚠️  Email sending failed, but token generated: ${resetToken}`);
+
+      res.json({
+        message: 'Password reset initiated. For testing, use the token below.',
+        token: resetToken, // Send token for testing when email fails
+        success: true,
+        emailSent: false
+      });
+    }
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// POST /api/reset-password - Reset password with token
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+
+    // Check if token exists and is valid
+    const tokenData = resetTokens.get(token);
+
+    if (!tokenData) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    // Check if token has expired
+    if (Date.now() > tokenData.expiresAt) {
+      resetTokens.delete(token);
+      return res.status(400).json({ error: 'Reset token has expired' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update user password
+    await prisma.user.update({
+      where: { email: tokenData.email },
+      data: { password: hashedPassword }
+    });
+
+    // Delete used token
+    resetTokens.delete(token);
+
+    console.log(`✅ Password reset successful for ${tokenData.email}`);
+
+    res.json({ message: 'Password reset successful. You can now login with your new password.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 // GET /api/users - Get all users with profiles (protected)
 app.get('/api/users', authenticateToken, async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       include: { profile: true },
-      select: {
-        id: true,
-        email: true,
-        createdAt: true,
-        profile: true,
-      },
     });
 
-    res.json({ users });
+    // Remove password from response
+    const usersWithoutPassword = users.map(user => {
+      const { password, ...userWithoutPassword } = user;
+      return userWithoutPassword;
+    });
+
+    res.json({ users: usersWithoutPassword });
   } catch (error) {
     console.error('Get users error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
@@ -229,24 +367,12 @@ app.get('/api/users/:identifier', authenticateToken, async (req, res) => {
     let user = await prisma.user.findUnique({
       where: { id: identifier },
       include: { profile: true },
-      select: {
-        id: true,
-        email: true,
-        createdAt: true,
-        profile: true,
-      },
     });
 
     if (!user) {
       user = await prisma.user.findUnique({
         where: { email: identifier },
         include: { profile: true },
-        select: {
-          id: true,
-          email: true,
-          createdAt: true,
-          profile: true,
-        },
       });
     }
 
@@ -254,14 +380,17 @@ app.get('/api/users/:identifier', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user });
+    // Remove password from response
+    const { password, ...userWithoutPassword } = user;
+
+    res.json({ user: userWithoutPassword });
   } catch (error) {
     console.error('Get user error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
-// POST /api/chatbot - Send query to Claude with user data context from Pinecone (protected)
+// POST /api/chatbot - Send query to OpenAI with intelligent user filtering (protected)
 app.post('/api/chatbot', authenticateToken, async (req, res) => {
   try {
     const { query } = req.body;
@@ -270,107 +399,349 @@ app.post('/api/chatbot', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Query is required' });
     }
 
-    let usersData;
+    // Get ALL users from database (better than buggy semantic search)
+    const allUsers = await prisma.user.findMany({
+      include: { profile: true },
+    });
 
-    // Try to get data from Pinecone first, fallback to PostgreSQL
-    if (pineconeReady) {
-      try {
-        // Get all users from Pinecone
-        const pineconeUsers = await getAllUsersFromPinecone();
+    const totalUserCount = allUsers.length;
 
-        if (pineconeUsers && pineconeUsers.length > 0) {
-          // Use Pinecone data
-          usersData = pineconeUsers.map(pu => ({
-            id: pu.id,
-            email: pu.metadata.email,
-            createdAt: pu.metadata.createdAt,
-            profile: {
-              name: pu.metadata.name,
-              age: pu.metadata.age,
-              educationLevel: pu.metadata.educationLevel,
-              occupation: pu.metadata.occupation,
-              learningGoals: pu.metadata.learningGoals,
-              subjects: pu.metadata.subjects,
-              learningStyle: pu.metadata.learningStyle,
-              previousExperience: pu.metadata.previousExperience,
-              strengths: pu.metadata.strengths,
-              weaknesses: pu.metadata.weaknesses,
-              specificChallenges: pu.metadata.specificChallenges,
-              availableHoursPerWeek: pu.metadata.availableHoursPerWeek,
-              learningPace: pu.metadata.learningPace,
-              motivationLevel: pu.metadata.motivationLevel,
-            }
-          }));
-          console.log(`✅ Retrieved ${usersData.length} users from Pinecone`);
-        } else {
-          throw new Error('No users in Pinecone');
+    // Simple but effective keyword-based filtering
+    const queryLower = query.toLowerCase();
+    const keywords = queryLower.split(/\s+/);
+
+    // Score each user based on relevance
+    const scoredUsers = allUsers.map(user => {
+      let score = 0;
+      const profile = user.profile;
+
+      if (!profile) return { user, score: 0 };
+
+      const searchText = `
+        ${profile.name || ''}
+        ${profile.occupation || ''}
+        ${profile.educationLevel || ''}
+        ${profile.learningGoals || ''}
+        ${profile.subjects?.join(' ') || ''}
+        ${profile.previousExperience || ''}
+      `.toLowerCase();
+
+      // Count keyword matches
+      keywords.forEach(keyword => {
+        if (searchText.includes(keyword)) {
+          score += 10;
         }
-      } catch (pineconeError) {
-        console.error('Pinecone retrieval failed, falling back to PostgreSQL:', pineconeError);
-        // Fallback to PostgreSQL
-        const users = await prisma.user.findMany({
-          include: { profile: true },
-          select: {
-            id: true,
-            email: true,
-            createdAt: true,
-            profile: true,
-          },
-        });
-        usersData = users;
-      }
-    } else {
-      // Pinecone not ready, use PostgreSQL
-      const users = await prisma.user.findMany({
-        include: { profile: true },
-        select: {
-          id: true,
-          email: true,
-          createdAt: true,
-          profile: true,
-        },
       });
-      usersData = users;
-    }
 
-    // Create prompt with user data context
-    const prompt = `You are Zaryah AI, an intelligent educational assistant for the Zaryah platform. You have access to student data and can help answer questions about users and their learning profiles.
+      // Boost for exact occupation match
+      if (profile.occupation && queryLower.includes(profile.occupation.toLowerCase())) {
+        score += 50;
+      }
+
+      // Boost for subject matches
+      if (profile.subjects) {
+        profile.subjects.forEach(subject => {
+          if (queryLower.includes(subject.toLowerCase())) {
+            score += 30;
+          }
+        });
+      }
+
+      return { user, score };
+    });
+
+    // Sort by score and take top 15 relevant users
+    const relevantUsers = scoredUsers
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 15)
+      .map(item => ({
+        id: item.user.id,
+        email: item.user.email || '',
+        profile: {
+          name: item.user.profile?.name || 'Unknown',
+          age: item.user.profile?.age || 0,
+          educationLevel: item.user.profile?.educationLevel || '',
+          occupation: item.user.profile?.occupation || '',
+          learningGoals: item.user.profile?.learningGoals || '',
+          subjects: item.user.profile?.subjects || [],
+          learningStyle: item.user.profile?.learningStyle || '',
+          previousExperience: item.user.profile?.previousExperience || '',
+          strengths: item.user.profile?.strengths || '',
+          weaknesses: item.user.profile?.weaknesses || '',
+          specificChallenges: item.user.profile?.specificChallenges || '',
+          availableHoursPerWeek: item.user.profile?.availableHoursPerWeek || 0,
+          learningPace: item.user.profile?.learningPace || '',
+          motivationLevel: item.user.profile?.motivationLevel || '',
+        }
+      }));
+
+    console.log(`✅ Found ${relevantUsers.length} relevant users for query: "${query}"`);
+
+    // Define agentic tools for function calling
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "search_users",
+          description: "Search for users by specific criteria such as occupation, education level, or subjects of interest",
+          parameters: {
+            type: "object",
+            properties: {
+              occupation: {
+                type: "string",
+                description: "Filter by occupation (e.g., 'Student', 'Teacher', 'Engineer', 'Doctor')"
+              },
+              educationLevel: {
+                type: "string",
+                description: "Filter by education level (e.g., 'High School', 'Bachelor', 'Master')"
+              },
+              subjects: {
+                type: "array",
+                items: { type: "string" },
+                description: "Filter by subjects of interest"
+              }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_user_profile",
+          description: "Get detailed profile information for a specific user by their name or ID",
+          parameters: {
+            type: "object",
+            properties: {
+              identifier: {
+                type: "string",
+                description: "User's name or ID"
+              }
+            },
+            required: ["identifier"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "send_message",
+          description: "Send a message to a specific user on behalf of the current user",
+          parameters: {
+            type: "object",
+            properties: {
+              userName: {
+                type: "string",
+                description: "Name of the user to send message to"
+              },
+              message: {
+                type: "string",
+                description: "The message content to send"
+              }
+            },
+            required: ["userName", "message"]
+          }
+        }
+      }
+    ];
+
+    // Create system prompt with RELEVANT user data context
+    const systemPrompt = `You are Zaryah AI, an intelligent educational assistant for the Zaryah platform. You help users discover and connect with other learners.
+
+PLATFORM STATISTICS:
+- Total users on platform: ${totalUserCount}
+- Most relevant users for this query: ${relevantUsers.length}
 
 IMPORTANT INSTRUCTIONS:
-- If the user greets you or says hello, respond warmly: "Hello! I'm Zaryah AI, your educational assistant. How may I help you today?"
-- ONLY provide user information when specifically asked about a user, users, or learning data
-- Do NOT volunteer information about users unless explicitly requested
-- Keep responses concise and helpful
-- When asked about a specific user, provide relevant details from their profile
-- When asked for statistics or comparisons, format them clearly
+- When asked "who is a developer" or "who is developing", look for users with occupations like "Software Developer", "Backend Developer", "Frontend Developer", "Game Developer", "Junior Developer", "Blockchain Developer"
+- When asked "who is studying", look for users with occupation "Student"
+- When asked "who is learning X", look for users with X in their subjects or learning goals
+- ALWAYS mention user names explicitly in your response
+- Provide specific information about each relevant user
+- Include occupation, education level, subjects, and learning goals
+- Format responses clearly with bullet points
+- Be conversational and helpful
 
-Here is the user database (ONLY use this when the user asks about users):
+RELEVANT USERS FOR THIS QUERY:
+${JSON.stringify(relevantUsers, null, 2)}`;
 
-${JSON.stringify(usersData, null, 2)}
+    // Call OpenAI API with function calling
+    let response;
+    try {
+      console.log('🤖 Calling OpenAI API...');
 
-User Question: ${query}`;
+      // Call OpenAI with function calling support
+      const completion = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: query }
+        ],
+        tools: tools,
+        tool_choice: "auto",
+        max_tokens: 1024,
+        temperature: 0.7,
+      });
 
-    // Call Groq API
-    const chatCompletion = await groq.chat.completions.create({
-      messages: [{ role: 'user', content: prompt }],
-      model: 'llama-3.3-70b-versatile',
-      temperature: 0.7,
-      max_tokens: 1024,
-    });
-    const response = chatCompletion.choices[0]?.message?.content || 'No response generated';
+      const message = completion.choices[0]?.message;
+
+      // Check if the model wants to call a function
+      if (message.tool_calls && message.tool_calls.length > 0) {
+        const toolCall = message.tool_calls[0];
+        const functionName = toolCall.function.name;
+        const functionArgs = JSON.parse(toolCall.function.arguments);
+
+        console.log(`🔧 Tool call: ${functionName}`, functionArgs);
+
+        // Execute tool functions
+        if (functionName === "search_users") {
+          // Search through ALL users, not just relevantUsers
+          const filtered = allUsers.filter(u => {
+            if (!u.profile) return false;
+
+            // Check occupation (partial match for "developer" matching "Software Developer", etc.)
+            if (functionArgs.occupation) {
+              const occupationLower = functionArgs.occupation.toLowerCase();
+              const userOccupation = (u.profile.occupation || '').toLowerCase();
+              if (!userOccupation.includes(occupationLower) && !occupationLower.includes(userOccupation)) {
+                return false;
+              }
+            }
+
+            // Check education level
+            if (functionArgs.educationLevel && u.profile.educationLevel !== functionArgs.educationLevel) {
+              return false;
+            }
+
+            // Check subjects
+            if (functionArgs.subjects && !functionArgs.subjects.some(s => u.profile.subjects?.includes(s))) {
+              return false;
+            }
+
+            return true;
+          });
+
+          response = `Found ${filtered.length} users matching your criteria:\n\n` +
+                    filtered.slice(0, 15).map(u => `• ${u.profile?.name}: ${u.profile?.occupation}, ${u.profile?.educationLevel}`).join('\n');
+        } else if (functionName === "get_user_profile") {
+          // First search in relevant users
+          let user = relevantUsers.find(u =>
+            u.profile?.name?.toLowerCase().includes(functionArgs.identifier.toLowerCase()) ||
+            u.id === functionArgs.identifier
+          );
+
+          // If not found, search in database
+          if (!user) {
+            const dbUser = await prisma.user.findFirst({
+              where: {
+                OR: [
+                  { profile: { name: { contains: functionArgs.identifier, mode: 'insensitive' } } },
+                  { id: functionArgs.identifier }
+                ]
+              },
+              include: { profile: true }
+            });
+            user = dbUser;
+          }
+
+          if (user) {
+            response = `Profile for ${user.profile?.name}:\n\n` +
+                      `• Occupation: ${user.profile?.occupation}\n` +
+                      `• Education: ${user.profile?.educationLevel}\n` +
+                      `• Subjects: ${user.profile?.subjects?.join(', ')}\n` +
+                      `• Learning Goals: ${user.profile?.learningGoals}\n` +
+                      `• Available Hours: ${user.profile?.availableHoursPerWeek} hours/week\n` +
+                      `• Learning Pace: ${user.profile?.learningPace}`;
+          } else {
+            response = `User not found with identifier: ${functionArgs.identifier}`;
+          }
+        } else if (functionName === "send_message") {
+          // Search in relevant users first, then database
+          let targetUser = relevantUsers.find(u =>
+            u.profile?.name?.toLowerCase() === functionArgs.userName.toLowerCase()
+          );
+
+          if (!targetUser) {
+            targetUser = await prisma.user.findFirst({
+              where: { profile: { name: { equals: functionArgs.userName, mode: 'insensitive' } } },
+              include: { profile: true }
+            });
+          }
+
+          if (targetUser) {
+            // Actually send the message via Prisma
+            await prisma.message.create({
+              data: {
+                senderId: req.user.userId,
+                receiverId: targetUser.id,
+                text: functionArgs.message
+              }
+            });
+            response = `Message sent successfully to ${targetUser.profile?.name}!`;
+          } else {
+            response = `Could not find user: ${functionArgs.userName}`;
+          }
+        }
+      } else {
+        // Use the direct response from OpenAI
+        response = message.content || 'I apologize, but I could not generate a response. Please try rephrasing your question.';
+      }
+
+      console.log('✅ OpenAI API response received');
+
+    } catch (openaiError) {
+      console.error('❌ OpenAI API error:', openaiError.message || openaiError);
+
+      // Fallback: Provide intelligent response based on query
+      const queryLower = query.toLowerCase();
+
+      if (queryLower.includes('user') || queryLower.includes('people') || queryLower.includes('student')) {
+        // List relevant users
+        response = `I found ${totalUserCount} users in our platform. Here are the most relevant ones:\n\n` +
+          relevantUsers.slice(0, 5).map(u => `• ${u.profile?.name || 'Unknown'} - ${u.profile?.occupation || 'N/A'}`).join('\n') +
+          `\n\nWould you like to know more about any specific user?`;
+      } else if (queryLower.includes('subject') || queryLower.includes('topic')) {
+        // Get subjects from relevant users
+        const allSubjects = new Set();
+        relevantUsers.forEach(u => {
+          u.profile?.subjects?.forEach(s => allSubjects.add(s));
+        });
+        response = `Based on your query, here are relevant subjects from our users:\n\n${Array.from(allSubjects).join(', ')}\n\nWould you like to find users interested in a specific subject?`;
+      } else {
+        response = `I'm Zaryah AI, your educational assistant. I have information about ${totalUserCount} users. You can ask me about:\n\n• Finding users by occupation or education level\n• Users interested in specific subjects\n• User profiles and learning goals\n• Connecting with other learners\n\nWhat would you like to know?`;
+      }
+    }
 
     // Extract user names mentioned in the response to send back as cards
+    // Search through ALL users, not just relevantUsers
     const mentionedUsers = [];
-    usersData.forEach(user => {
+    allUsers.forEach(user => {
       if (user.profile && user.profile.name) {
         const nameLower = user.profile.name.toLowerCase();
         const responseLower = response.toLowerCase();
         // Check if user's name is mentioned in the response
         if (responseLower.includes(nameLower)) {
           mentionedUsers.push({
-            id: user.id,
-            email: user.email,
-            profile: user.profile,
+            id: user.id || '',
+            email: user.email || '',
+            profile: {
+              name: user.profile.name || '',
+              age: user.profile.age || 0,
+              educationLevel: user.profile.educationLevel || '',
+              occupation: user.profile.occupation || '',
+              learningGoals: user.profile.learningGoals || '',
+              subjects: user.profile.subjects || [],
+              learningStyle: user.profile.learningStyle || '',
+              previousExperience: user.profile.previousExperience || '',
+              strengths: user.profile.strengths || '',
+              weaknesses: user.profile.weaknesses || '',
+              specificChallenges: user.profile.specificChallenges || '',
+              availableHoursPerWeek: user.profile.availableHoursPerWeek || 0,
+              learningPace: user.profile.learningPace || '',
+              motivationLevel: user.profile.motivationLevel || '',
+              bio: user.profile.bio || '',
+              profilePicture: user.profile.profilePicture || '',
+            }
           });
         }
       }
@@ -416,14 +787,14 @@ app.post('/api/messages/send', authenticateToken, async (req, res) => {
         text,
       },
       include: {
-        sender: {
+        users_messages_senderIdTousers: {
           select: {
             id: true,
             email: true,
             profile: { select: { name: true } },
           },
         },
-        receiver: {
+        users_messages_receiverIdTousers: {
           select: {
             id: true,
             email: true,
@@ -451,14 +822,14 @@ app.get('/api/messages/conversations', authenticateToken, async (req, res) => {
         OR: [{ senderId: userId }, { receiverId: userId }],
       },
       include: {
-        sender: {
+        users_messages_senderIdTousers: {
           select: {
             id: true,
             email: true,
             profile: { select: { name: true } },
           },
         },
-        receiver: {
+        users_messages_receiverIdTousers: {
           select: {
             id: true,
             email: true,
@@ -474,7 +845,7 @@ app.get('/api/messages/conversations', authenticateToken, async (req, res) => {
 
     messages.forEach(msg => {
       const partnerId = msg.senderId === userId ? msg.receiverId : msg.senderId;
-      const partner = msg.senderId === userId ? msg.receiver : msg.sender;
+      const partner = msg.senderId === userId ? msg.users_messages_receiverIdTousers : msg.users_messages_senderIdTousers;
 
       if (!conversationsMap.has(partnerId)) {
         conversationsMap.set(partnerId, {
@@ -517,14 +888,14 @@ app.get('/api/messages/:partnerId', authenticateToken, async (req, res) => {
         ],
       },
       include: {
-        sender: {
+        users_messages_senderIdTousers: {
           select: {
             id: true,
             email: true,
             profile: { select: { name: true } },
           },
         },
-        receiver: {
+        users_messages_receiverIdTousers: {
           select: {
             id: true,
             email: true,
@@ -560,19 +931,16 @@ app.get('/api/profile/me', authenticateToken, async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { profile: true },
-      select: {
-        id: true,
-        email: true,
-        createdAt: true,
-        profile: true,
-      },
     });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user });
+    // Remove password from response
+    const { password, ...userWithoutPassword } = user;
+
+    res.json({ user: userWithoutPassword });
   } catch (error) {
     console.error('Get current profile error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
@@ -586,8 +954,6 @@ app.put('/api/profile/me', authenticateToken, async (req, res) => {
     const {
       name,
       age,
-      bio,
-      profilePicture,
       educationLevel,
       occupation,
       learningGoals,
@@ -610,8 +976,6 @@ app.put('/api/profile/me', authenticateToken, async (req, res) => {
           update: {
             ...(name && { name }),
             ...(age && { age: parseInt(age) }),
-            ...(bio !== undefined && { bio }),
-            ...(profilePicture !== undefined && { profilePicture }),
             ...(educationLevel && { educationLevel }),
             ...(occupation && { occupation }),
             ...(learningGoals && { learningGoals }),
@@ -695,10 +1059,10 @@ app.get('/api/dashboard', authenticateToken, async (req, res) => {
         ],
       },
       include: {
-        sender: {
+        users_messages_senderIdTousers: {
           include: { profile: true },
         },
-        receiver: {
+        users_messages_receiverIdTousers: {
           include: { profile: true },
         },
       },
@@ -711,7 +1075,7 @@ app.get('/api/dashboard', authenticateToken, async (req, res) => {
     const recentUserIds = new Set();
     const recentUsers = [];
     recentMessages.forEach(msg => {
-      const otherUser = msg.senderId === userId ? msg.receiver : msg.sender;
+      const otherUser = msg.senderId === userId ? msg.users_messages_receiverIdTousers : msg.users_messages_senderIdTousers;
       if (!recentUserIds.has(otherUser.id) && recentUsers.length < 5) {
         recentUserIds.add(otherUser.id);
         recentUsers.push({

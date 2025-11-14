@@ -1,5 +1,3 @@
-// This is your Prisma schema file
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,12 +8,14 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  profile   Profile?
+  id                                  String    @id @default(uuid())
+  email                               String    @unique
+  password                            String
+  createdAt                           DateTime  @default(now())
+  updatedAt                           DateTime  @updatedAt
+  messages_messages_receiverIdTousers Message[] @relation("messages_receiverIdTousers")
+  messages_messages_senderIdTousers   Message[] @relation("messages_senderIdTousers")
+  profile                             Profile?
 
   @@map("users")
 }
@@ -23,34 +23,41 @@ model User {
 model Profile {
   id                    String   @id @default(uuid())
   userId                String   @unique
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Basic Information
   name                  String
   age                   Int
-
-  // Education & Career
   educationLevel        String
   occupation            String
-
-  // Learning Preferences
   learningGoals         String
   subjects              String[]
   learningStyle         String
   previousExperience    String
-
-  // Strengths & Challenges
   strengths             String
   weaknesses            String
   specificChallenges    String
-
-  // Time & Motivation
   availableHoursPerWeek Int      @default(5)
   learningPace          String   @default("Medium")
   motivationLevel       String   @default("Medium")
-
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+  bio                   String?
+  profilePicture        String?
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("profiles")
+}
+
+model Message {
+  id                               String   @id @default(uuid())
+  text                             String
+  senderId                         String
+  receiverId                       String
+  read                             Boolean  @default(false)
+  createdAt                        DateTime @default(now())
+  users_messages_receiverIdTousers User     @relation("messages_receiverIdTousers", fields: [receiverId], references: [id], onDelete: Cascade)
+  users_messages_senderIdTousers   User     @relation("messages_senderIdTousers", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([receiverId])
+  @@index([senderId])
+  @@map("messages")
 }

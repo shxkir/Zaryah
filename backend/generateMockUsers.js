@@ -10,8 +10,8 @@ const prisma = new PrismaClient();
 
 const mockUsers = [
   {
-    name: "Sarah Johnson",
-    email: "sarah.johnson@example.com",
+    name: "Fatima Ahmed",
+    email: "fatima.ahmed@example.com",
     age: 28,
     educationLevel: "Bachelor's",
     occupation: "Software Developer",
@@ -27,8 +27,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Michael Chen",
-    email: "michael.chen@example.com",
+    name: "Mohammed Hassan",
+    email: "mohammed.hassan@example.com",
     age: 32,
     educationLevel: "Master's",
     occupation: "Data Scientist",
@@ -44,8 +44,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Emily Rodriguez",
-    email: "emily.rodriguez@example.com",
+    name: "Aisha Rahman",
+    email: "aisha.rahman@example.com",
     age: 24,
     educationLevel: "Bachelor's",
     occupation: "UX Designer",
@@ -61,8 +61,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "David Kim",
-    email: "david.kim@example.com",
+    name: "Omar Abdullah",
+    email: "omar.abdullah@example.com",
     age: 19,
     educationLevel: "High School",
     occupation: "Student",
@@ -78,8 +78,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Jennifer Thompson",
-    email: "jennifer.thompson@example.com",
+    name: "Zainab Ali",
+    email: "zainab.ali@example.com",
     age: 35,
     educationLevel: "Bachelor's",
     occupation: "Project Manager",
@@ -95,8 +95,8 @@ const mockUsers = [
     motivationLevel: "Medium"
   },
   {
-    name: "Alex Martinez",
-    email: "alex.martinez@example.com",
+    name: "Ibrahim Malik",
+    email: "ibrahim.malik@example.com",
     age: 27,
     educationLevel: "Master's",
     occupation: "Backend Developer",
@@ -112,8 +112,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Jessica Lee",
-    email: "jessica.lee@example.com",
+    name: "Mariam Khan",
+    email: "mariam.khan@example.com",
     age: 29,
     educationLevel: "Bachelor's",
     occupation: "Marketing Specialist",
@@ -129,8 +129,8 @@ const mockUsers = [
     motivationLevel: "Medium"
   },
   {
-    name: "Robert Wilson",
-    email: "robert.wilson@example.com",
+    name: "Yusuf Osman",
+    email: "yusuf.osman@example.com",
     age: 42,
     educationLevel: "Master's",
     occupation: "Senior Manager",
@@ -146,8 +146,8 @@ const mockUsers = [
     motivationLevel: "Medium"
   },
   {
-    name: "Amanda Brown",
-    email: "amanda.brown@example.com",
+    name: "Khadija Noor",
+    email: "khadija.noor@example.com",
     age: 26,
     educationLevel: "Bachelor's",
     occupation: "Graphic Designer",
@@ -163,8 +163,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Chris Anderson",
-    email: "chris.anderson@example.com",
+    name: "Hamza Sheikh",
+    email: "hamza.sheikh@example.com",
     age: 31,
     educationLevel: "PhD",
     occupation: "Research Scientist",
@@ -180,8 +180,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Maria Garcia",
-    email: "maria.garcia@example.com",
+    name: "Layla Abbas",
+    email: "layla.abbas@example.com",
     age: 23,
     educationLevel: "Bachelor's",
     occupation: "Junior Developer",
@@ -197,8 +197,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "James Taylor",
-    email: "james.taylor@example.com",
+    name: "Hassan Aziz",
+    email: "hassan.aziz@example.com",
     age: 38,
     educationLevel: "Bachelor's",
     occupation: "IT Administrator",
@@ -214,8 +214,8 @@ const mockUsers = [
     motivationLevel: "Medium"
   },
   {
-    name: "Lisa Wang",
-    email: "lisa.wang@example.com",
+    name: "Safiya Iqbal",
+    email: "safiya.iqbal@example.com",
     age: 25,
     educationLevel: "Master's",
     occupation: "AI Researcher",
@@ -231,8 +231,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Daniel Miller",
-    email: "daniel.miller@example.com",
+    name: "Tariq Mansour",
+    email: "tariq.mansour@example.com",
     age: 45,
     educationLevel: "Bachelor's",
     occupation: "Teacher",
@@ -248,8 +248,8 @@ const mockUsers = [
     motivationLevel: "Medium"
   },
   {
-    name: "Rachel Green",
-    email: "rachel.green@example.com",
+    name: "Amina Farouk",
+    email: "amina.farouk@example.com",
     age: 22,
     educationLevel: "Bachelor's",
     occupation: "Student",
@@ -265,8 +265,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Kevin Patel",
-    email: "kevin.patel@example.com",
+    name: "Bilal Hussain",
+    email: "bilal.hussain@example.com",
     age: 33,
     educationLevel: "Master's",
     occupation: "Security Engineer",
@@ -282,8 +282,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Sophia Nguyen",
-    email: "sophia.nguyen@example.com",
+    name: "Nadia Qureshi",
+    email: "nadia.qureshi@example.com",
     age: 27,
     educationLevel: "Bachelor's",
     occupation: "Content Creator",
@@ -299,8 +299,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Thomas Wright",
-    email: "thomas.wright@example.com",
+    name: "Rashid Farooq",
+    email: "rashid.farooq@example.com",
     age: 36,
     educationLevel: "Bachelor's",
     occupation: "Business Analyst",
@@ -316,8 +316,8 @@ const mockUsers = [
     motivationLevel: "Medium"
   },
   {
-    name: "Olivia Davis",
-    email: "olivia.davis@example.com",
+    name: "Hiba Khalil",
+    email: "hiba.khalil@example.com",
     age: 24,
     educationLevel: "Bachelor's",
     occupation: "QA Engineer",
@@ -333,8 +333,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Nathan Scott",
-    email: "nathan.scott@example.com",
+    name: "Imran Siddiqui",
+    email: "imran.siddiqui@example.com",
     age: 29,
     educationLevel: "Master's",
     occupation: "Game Developer",
@@ -350,8 +350,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Isabella Martin",
-    email: "isabella.martin@example.com",
+    name: "Sumaya Rashid",
+    email: "sumaya.rashid@example.com",
     age: 31,
     educationLevel: "Bachelor's",
     occupation: "HR Manager",
@@ -367,8 +367,8 @@ const mockUsers = [
     motivationLevel: "Low"
   },
   {
-    name: "Ethan Clark",
-    email: "ethan.clark@example.com",
+    name: "Karim Mahmoud",
+    email: "karim.mahmoud@example.com",
     age: 26,
     educationLevel: "Bachelor's",
     occupation: "Frontend Developer",
@@ -384,8 +384,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Mia Robinson",
-    email: "mia.robinson@example.com",
+    name: "Yasmin Saeed",
+    email: "yasmin.saeed@example.com",
     age: 21,
     educationLevel: "Bachelor's",
     occupation: "Student",
@@ -401,8 +401,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "William Turner",
-    email: "william.turner@example.com",
+    name: "Fahad Amin",
+    email: "fahad.amin@example.com",
     age: 40,
     educationLevel: "Master's",
     occupation: "Solutions Architect",
@@ -418,8 +418,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Ava Lewis",
-    email: "ava.lewis@example.com",
+    name: "Salma Youssef",
+    email: "salma.youssef@example.com",
     age: 25,
     educationLevel: "Bachelor's",
     occupation: "Digital Marketer",
@@ -435,8 +435,8 @@ const mockUsers = [
     motivationLevel: "Medium"
   },
   {
-    name: "Ryan Hall",
-    email: "ryan.hall@example.com",
+    name: "Adil Zahir",
+    email: "adil.zahir@example.com",
     age: 34,
     educationLevel: "Bachelor's",
     occupation: "DevOps Engineer",
@@ -452,8 +452,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Emma White",
-    email: "emma.white@example.com",
+    name: "Rania Hakim",
+    email: "rania.hakim@example.com",
     age: 28,
     educationLevel: "Master's",
     occupation: "Product Designer",
@@ -469,8 +469,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Benjamin Harris",
-    email: "benjamin.harris@example.com",
+    name: "Samir Wazir",
+    email: "samir.wazir@example.com",
     age: 37,
     educationLevel: "Bachelor's",
     occupation: "Database Administrator",
@@ -486,8 +486,8 @@ const mockUsers = [
     motivationLevel: "Medium"
   },
   {
-    name: "Charlotte Young",
-    email: "charlotte.young@example.com",
+    name: "Nour Abdallah",
+    email: "nour.abdallah@example.com",
     age: 23,
     educationLevel: "Bachelor's",
     occupation: "Junior Data Analyst",
@@ -503,8 +503,8 @@ const mockUsers = [
     motivationLevel: "High"
   },
   {
-    name: "Jacob King",
-    email: "jacob.king@example.com",
+    name: "Zayn Ibrahim",
+    email: "zayn.ibrahim@example.com",
     age: 30,
     educationLevel: "Master's",
     occupation: "Blockchain Developer",
