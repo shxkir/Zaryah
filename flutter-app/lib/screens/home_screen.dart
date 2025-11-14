@@ -7,7 +7,7 @@ import 'messages_screen.dart';
 import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -37,13 +37,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  late final List<Widget> _screens = [
-    DashboardScreen(user: _user),
-    const ChatbotScreen(),
-    const CommunityScreen(),
-    const MessagesScreen(),
-    const ProfileScreen(),
-  ];
+  List<Widget> get _screens => [
+        DashboardScreen(user: _user),
+        const ChatbotScreen(),
+        const CommunityScreen(),
+        const MessagesScreen(),
+        const ProfileScreen(),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
 class DashboardScreen extends StatefulWidget {
   final UserModel? user;
 
-  const DashboardScreen({Key? key, this.user}) : super(key: key);
+  const DashboardScreen({super.key, this.user});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -100,11 +100,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final _apiService = ApiService();
   Map<String, dynamic>? _dashboardData;
   bool _isLoading = true;
+  String? _userName;
 
   @override
   void initState() {
     super.initState();
+    _syncUserName(widget.user);
     _loadDashboardData();
+  }
+
+  @override
+  void didUpdateWidget(covariant DashboardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.user?.profile?.name != oldWidget.user?.profile?.name) {
+      _syncUserName(widget.user);
+    }
   }
 
   Future<void> _loadDashboardData() async {
@@ -124,6 +134,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  void _syncUserName(UserModel? user) {
+    final providedName = user?.profile?.name;
+    if (providedName != null && providedName.isNotEmpty) {
+      if (_userName != providedName) {
+        setState(() {
+          _userName = providedName;
+        });
+      }
+    } else {
+      _fetchUserName();
+    }
+  }
+
+  Future<void> _fetchUserName() async {
+    try {
+      final profile = await _apiService.getCurrentProfile();
+      final fetchedName = profile['profile']?['name'] as String?;
+      if (mounted && fetchedName != null && fetchedName.isNotEmpty) {
+        setState(() {
+          _userName = fetchedName;
+        });
+      }
+    } catch (_) {
+      // Ignore; we'll fall back to generic label
+    }
+  }
+
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) {
@@ -137,7 +174,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String firstName = widget.user?.profile?.name.split(' ').first ?? 'User';
+    final String firstName = _userName != null && _userName!.isNotEmpty
+        ? _userName!.split(' ').first
+        : 'User';
     final String greeting = _getGreeting();
 
     return Scaffold(
@@ -173,7 +212,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Text(
-                            '$greeting,',
+                            '$greeting, $firstName',
                             style: const TextStyle(
                               fontSize: 18,
                               color: Colors.white70,
@@ -261,7 +300,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               const Color(0xFFFFD700),
                               () {
                                 // Switch to chatbot tab
-                                final homeState = context.findAncestorStateOfType<_HomeScreenState>();
+                                final homeState =
+                                    context.findAncestorStateOfType<
+                                        _HomeScreenState>();
                                 homeState?.setState(() {
                                   homeState._currentIndex = 1;
                                 });
@@ -275,7 +316,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Icons.people,
                               const Color(0xFF4CAF50),
                               () {
-                                final homeState = context.findAncestorStateOfType<_HomeScreenState>();
+                                final homeState =
+                                    context.findAncestorStateOfType<
+                                        _HomeScreenState>();
                                 homeState?.setState(() {
                                   homeState._currentIndex = 2;
                                 });
@@ -293,7 +336,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Icons.message,
                               const Color(0xFF2196F3),
                               () {
-                                final homeState = context.findAncestorStateOfType<_HomeScreenState>();
+                                final homeState =
+                                    context.findAncestorStateOfType<
+                                        _HomeScreenState>();
                                 homeState?.setState(() {
                                   homeState._currentIndex = 3;
                                 });
@@ -307,7 +352,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Icons.edit,
                               const Color(0xFFFF9800),
                               () {
-                                final homeState = context.findAncestorStateOfType<_HomeScreenState>();
+                                final homeState =
+                                    context.findAncestorStateOfType<
+                                        _HomeScreenState>();
                                 homeState?.setState(() {
                                   homeState._currentIndex = 4;
                                 });
@@ -320,16 +367,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                       // Recent Users
                       if (_dashboardData?['recentUsers'] != null &&
-                          (_dashboardData!['recentUsers'] as List).isNotEmpty) ...[
+                          (_dashboardData!['recentUsers'] as List)
+                              .isNotEmpty) ...[
                         _buildSectionTitle('Recent Chats'),
                         const SizedBox(height: 16),
                         SizedBox(
                           height: 140,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
-                            itemCount: (_dashboardData!['recentUsers'] as List).length,
+                            itemCount:
+                                (_dashboardData!['recentUsers'] as List).length,
                             itemBuilder: (context, index) {
-                              final user = (_dashboardData!['recentUsers'] as List)[index];
+                              final user = (_dashboardData!['recentUsers']
+                                  as List)[index];
                               return _buildRecentUserCard(user);
                             },
                           ),
@@ -339,24 +389,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                       // Suggested Users
                       if (_dashboardData?['suggestedUsers'] != null &&
-                          (_dashboardData!['suggestedUsers'] as List).isNotEmpty) ...[
+                          (_dashboardData!['suggestedUsers'] as List)
+                              .isNotEmpty) ...[
                         _buildSectionTitle('Suggested Connections'),
                         const SizedBox(height: 16),
-                        ...(_dashboardData!['suggestedUsers'] as List).map((user) {
+                        ...(_dashboardData!['suggestedUsers'] as List)
+                            .map((user) {
                           return _buildSuggestedUserCard(user);
-                        }).toList(),
+                        }),
                         const SizedBox(height: 32),
                       ],
 
                       // Trending Topics
                       if (_dashboardData?['trendingTopics'] != null &&
-                          (_dashboardData!['trendingTopics'] as List).isNotEmpty) ...[
+                          (_dashboardData!['trendingTopics'] as List)
+                              .isNotEmpty) ...[
                         _buildSectionTitle('Trending Topics'),
                         const SizedBox(height: 16),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
-                          children: (_dashboardData!['trendingTopics'] as List).map((topic) {
+                          children: (_dashboardData!['trendingTopics'] as List)
+                              .map((topic) {
                             return _buildTrendingChip(
                               topic['topic'],
                               topic['count'],
@@ -403,7 +457,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -451,7 +506,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildActionButton(String label, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildActionButton(
+      String label, IconData icon, Color color, VoidCallback onTap) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -527,7 +583,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFFFD700), width: 2),
+                    border:
+                        Border.all(color: const Color(0xFFFFD700), width: 2),
                   ),
                   child: CircleAvatar(
                     radius: 30,

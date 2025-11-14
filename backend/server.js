@@ -1,7 +1,7 @@
 require('dotenv').config({ override: true });
 const express = require('express');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 const OpenAI = require('openai');
@@ -22,6 +22,7 @@ const openai = new OpenAI({
 });
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // EmailJS Configuration
@@ -787,14 +788,14 @@ app.post('/api/messages/send', authenticateToken, async (req, res) => {
         text,
       },
       include: {
-        users_messages_senderIdTousers: {
+        sender: {
           select: {
             id: true,
             email: true,
             profile: { select: { name: true } },
           },
         },
-        users_messages_receiverIdTousers: {
+        receiver: {
           select: {
             id: true,
             email: true,
@@ -822,14 +823,14 @@ app.get('/api/messages/conversations', authenticateToken, async (req, res) => {
         OR: [{ senderId: userId }, { receiverId: userId }],
       },
       include: {
-        users_messages_senderIdTousers: {
+        sender: {
           select: {
             id: true,
             email: true,
             profile: { select: { name: true } },
           },
         },
-        users_messages_receiverIdTousers: {
+        receiver: {
           select: {
             id: true,
             email: true,
@@ -845,7 +846,7 @@ app.get('/api/messages/conversations', authenticateToken, async (req, res) => {
 
     messages.forEach(msg => {
       const partnerId = msg.senderId === userId ? msg.receiverId : msg.senderId;
-      const partner = msg.senderId === userId ? msg.users_messages_receiverIdTousers : msg.users_messages_senderIdTousers;
+      const partner = msg.senderId === userId ? msg.receiver : msg.sender;
 
       if (!conversationsMap.has(partnerId)) {
         conversationsMap.set(partnerId, {
@@ -888,14 +889,14 @@ app.get('/api/messages/:partnerId', authenticateToken, async (req, res) => {
         ],
       },
       include: {
-        users_messages_senderIdTousers: {
+        sender: {
           select: {
             id: true,
             email: true,
             profile: { select: { name: true } },
           },
         },
-        users_messages_receiverIdTousers: {
+        receiver: {
           select: {
             id: true,
             email: true,
@@ -1059,10 +1060,10 @@ app.get('/api/dashboard', authenticateToken, async (req, res) => {
         ],
       },
       include: {
-        users_messages_senderIdTousers: {
+        sender: {
           include: { profile: true },
         },
-        users_messages_receiverIdTousers: {
+        receiver: {
           include: { profile: true },
         },
       },
@@ -1075,7 +1076,7 @@ app.get('/api/dashboard', authenticateToken, async (req, res) => {
     const recentUserIds = new Set();
     const recentUsers = [];
     recentMessages.forEach(msg => {
-      const otherUser = msg.senderId === userId ? msg.users_messages_receiverIdTousers : msg.users_messages_senderIdTousers;
+      const otherUser = msg.senderId === userId ? msg.receiver : msg.sender;
       if (!recentUserIds.has(otherUser.id) && recentUsers.length < 5) {
         recentUserIds.add(otherUser.id);
         recentUsers.push({
@@ -1129,8 +1130,9 @@ app.get('/health', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Zaryah backend server running on http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  const displayHost = HOST === '0.0.0.0' ? 'localhost' : HOST;
+  console.log(`🚀 Zaryah backend server running on http://${displayHost}:${PORT}`);
 });
 
 // Graceful shutdown
