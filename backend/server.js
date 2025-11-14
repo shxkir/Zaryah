@@ -359,9 +359,27 @@ User Question: ${query}`;
     });
     const response = chatCompletion.choices[0]?.message?.content || 'No response generated';
 
+    // Extract user names mentioned in the response to send back as cards
+    const mentionedUsers = [];
+    usersData.forEach(user => {
+      if (user.profile && user.profile.name) {
+        const nameLower = user.profile.name.toLowerCase();
+        const responseLower = response.toLowerCase();
+        // Check if user's name is mentioned in the response
+        if (responseLower.includes(nameLower)) {
+          mentionedUsers.push({
+            id: user.id,
+            email: user.email,
+            profile: user.profile,
+          });
+        }
+      }
+    });
+
     res.json({
       query,
       response,
+      mentionedUsers, // Include users mentioned in response
       timestamp: new Date().toISOString(),
       dataSource: pineconeReady ? 'pinecone' : 'postgresql',
     });
@@ -617,6 +635,126 @@ app.put('/api/profile/me', authenticateToken, async (req, res) => {
     res.json({ message: 'Profile updated successfully', user: updatedUser });
   } catch (error) {
     console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// GET /api/dashboard - Get dashboard data with stats and suggestions (protected)
+app.get('/api/dashboard', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    // Get total users count
+    const totalUsers = await prisma.user.count();
+
+    // Get unread messages count
+    const unreadMessages = await prisma.message.count({
+      where: {
+        receiverId: userId,
+        read: false,
+      },
+    });
+
+    // Get total conversations count
+    const conversations = await prisma.message.groupBy({
+      by: ['senderId', 'receiverId'],
+      where: {
+        OR: [
+          { senderId: userId },
+          { receiverId: userId },
+        ],
+      },
+    });
+    const uniqueConversations = new Set();
+    conversations.forEach(conv => {
+      const partnerId = conv.senderId === userId ? conv.receiverId : conv.senderId;
+      uniqueConversations.add(partnerId);
+    });
+    const totalConversations = uniqueConversations.size;
+
+    // Get suggested users (random 5 users excluding current user)
+    const suggestedUsers = await prisma.user.findMany({
+      where: {
+        NOT: { id: userId },
+      },
+      include: {
+        profile: true,
+      },
+      take: 5,
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    // Get recent users (users with recent messages)
+    const recentMessages = await prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: userId },
+          { receiverId: userId },
+        ],
+      },
+      include: {
+        sender: {
+          include: { profile: true },
+        },
+        receiver: {
+          include: { profile: true },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 10,
+    });
+
+    const recentUserIds = new Set();
+    const recentUsers = [];
+    recentMessages.forEach(msg => {
+      const otherUser = msg.senderId === userId ? msg.receiver : msg.sender;
+      if (!recentUserIds.has(otherUser.id) && recentUsers.length < 5) {
+        recentUserIds.add(otherUser.id);
+        recentUsers.push({
+          id: otherUser.id,
+          email: otherUser.email,
+          profile: otherUser.profile,
+        });
+      }
+    });
+
+    // Trending topics (subjects from user profiles)
+    const profiles = await prisma.profile.findMany({
+      select: {
+        subjects: true,
+      },
+    });
+    const subjectCounts = {};
+    profiles.forEach(profile => {
+      profile.subjects.forEach(subject => {
+        subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
+      });
+    });
+    const trendingTopics = Object.entries(subjectCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([topic, count]) => ({ topic, count }));
+
+    res.json({
+      stats: {
+        totalUsers,
+        unreadMessages,
+        totalConversations,
+      },
+      suggestedUsers: suggestedUsers.map(user => ({
+        id: user.id,
+        email: user.email,
+        profile: user.profile,
+      })),
+      recentUsers,
+      trendingTopics,
+    });
+  } catch (error) {
+    console.error('Dashboard error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
