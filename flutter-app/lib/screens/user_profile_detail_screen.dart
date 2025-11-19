@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
+import '../widgets/profile_avatar.dart';
 import 'chat_screen.dart';
 
 class UserProfileDetailScreen extends StatelessWidget {
@@ -67,17 +68,12 @@ class UserProfileDetailScreen extends StatelessWidget {
                               width: 4,
                             ),
                           ),
-                          child: CircleAvatar(
-                            radius: 60,
+                          child: ProfileAvatar(
+                            imageUrl: profile.displayPicture,
+                            name: profile.name,
+                            size: 120,
                             backgroundColor: const Color(0xFFFFD700),
-                            child: Text(
-                              profile.name.substring(0, 1).toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 48,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF000000),
-                              ),
-                            ),
+                            textColor: const Color(0xFF000000),
                           ),
                         ),
                       ),
@@ -140,12 +136,13 @@ class UserProfileDetailScreen extends StatelessWidget {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
                         onTap: () {
-                          Navigator.pushReplacement(
+                          Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => ChatScreen(
                                 partnerId: user.id,
                                 partnerName: profile.name,
+                                partnerProfilePicture: profile.displayPicture,
                               ),
                             ),
                           );
@@ -385,12 +382,12 @@ class UserProfileDetailScreen extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            const Color(0xFF1A1A1A),
-            const Color(0xFF0D0D0D),
+            Color(0xFF1A1A1A),
+            Color(0xFF0D0D0D),
           ],
         ),
         borderRadius: BorderRadius.circular(16),

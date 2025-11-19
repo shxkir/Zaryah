@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import 'chat_screen.dart';
 import 'dart:async';
+import '../services/api_service.dart';
+import '../theme/luxury_theme.dart';
+import '../widgets/luxury_components.dart';
+import '../widgets/animated_components.dart';
+import 'chat_screen.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -77,21 +80,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF000000),
-      body: SafeArea(
+      backgroundColor: Colors.transparent,
+      body: GoldGradientBackground(
+        child: SafeArea(
         child: Column(
           children: [
             // Stunning header
             Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFFFFD700).withOpacity(0.2),
-                    const Color(0xFF000000),
-                  ],
-                ),
+                gradient: LuxuryColors.cardGradient,
               ),
               padding: const EdgeInsets.all(20),
               child: Row(
@@ -99,22 +96,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFFFFD700).withOpacity(0.3),
-                          const Color(0xFFFFD700).withOpacity(0.1),
-                        ],
-                      ),
+                      gradient: LuxuryColors.goldGradient,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: const Color(0xFFFFD700).withOpacity(0.4),
+                        color: LuxuryColors.borderGold,
                       ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.message_rounded,
-                      color: Color(0xFFFFD700),
+                      color: LuxuryColors.mainBackground,
                       size: 28,
                     ),
                   ),
@@ -122,26 +112,21 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Messages',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFFFD700),
-                        ),
+                        style: LuxuryTextStyles.h1.copyWith(fontSize: 28),
                       ),
                       Text(
                         '${_conversations.length} ${_conversations.length == 1 ? 'conversation' : 'conversations'}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.white70,
+                        style: LuxuryTextStyles.bodyMedium.copyWith(
+                          color: LuxuryColors.mutedText,
                         ),
                       ),
                     ],
                   ),
                   const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.refresh, color: Color(0xFFFFD700)),
+                  GoldIconButton(
+                    icon: Icons.refresh,
                     onPressed: () => _loadConversations(),
                   ),
                 ],
@@ -152,12 +137,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
             Expanded(
               child: _isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: Color(0xFFFFD700)),
+                      child: CircularProgressIndicator(color: LuxuryColors.primaryGold),
                     )
                   : _conversations.isEmpty
                       ? _buildEmptyState()
                       : RefreshIndicator(
-                          color: const Color(0xFFFFD700),
+                          color: LuxuryColors.primaryGold,
                           onRefresh: () => _loadConversations(),
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
@@ -170,6 +155,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         ),
             ),
           ],
+          ),
         ),
       ),
     );
@@ -188,32 +174,27 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  const Color(0xFFFFD700).withOpacity(0.2),
-                  const Color(0xFFFFD700).withOpacity(0.05),
+                  LuxuryColors.primaryGold.withOpacity(0.2),
+                  LuxuryColors.primaryGold.withOpacity(0.05),
                 ],
               ),
             ),
             child: Icon(
               Icons.message_outlined,
               size: 80,
-              color: const Color(0xFFFFD700).withOpacity(0.6),
+              color: LuxuryColors.primaryGold.withOpacity(0.6),
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'No Messages Yet',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+            style: LuxuryTextStyles.h2,
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Start a conversation from the Community tab',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.white70,
+            style: LuxuryTextStyles.bodyMedium.copyWith(
+              color: LuxuryColors.mutedText,
             ),
             textAlign: TextAlign.center,
           ),
@@ -223,42 +204,49 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Widget _buildConversationCard(Map<String, dynamic> conversation) {
-    final partner = conversation['partner'];
-    final partnerName = partner['profile']?['name'] ?? 'Unknown';
-    final lastMessage = conversation['lastMessage'];
-    final lastMessageText = lastMessage?['text'] ?? 'No messages yet';
-    final lastMessageTime = lastMessage?['createdAt'];
-    final unreadCount = conversation['unreadCount'] ?? 0;
+    final partnerId = conversation['partnerId'] as String? ??
+        (conversation['partner'] is Map<String, dynamic>
+            ? (conversation['partner'] as Map<String, dynamic>)['id'] as String?
+            : null) ??
+        '';
+
+    if (partnerId.isEmpty) return const SizedBox.shrink();
+
+    final partnerName = conversation['partnerName'] as String? ??
+        (conversation['partner'] is Map<String, dynamic>
+            ? (conversation['partner'] as Map<String, dynamic>)['name'] as String?
+            : null) ??
+        conversation['partnerEmail'] as String? ??
+        'Unknown';
+
+    // Get profile picture URL from partner's profile
+    final partnerProfile = conversation['partner'] is Map<String, dynamic>
+        ? conversation['partner'] as Map<String, dynamic>
+        : null;
+    final profilePictureUrl = partnerProfile?['profile']?['profilePictureUrl'] as String?;
+    final profilePicture = partnerProfile?['profile']?['profilePicture'] as String?;
+    final displayPicture = profilePictureUrl ?? profilePicture;
+
+    final lastMessageText = conversation['lastMessage'] as String? ??
+        (conversation['lastMessage'] is Map<String, dynamic>
+            ? (conversation['lastMessage'] as Map<String, dynamic>)['text']
+                as String?
+            : null) ??
+        'No messages yet';
+
+    final lastMessageTime = conversation['lastMessageTime'] as String? ??
+        (conversation['lastMessage'] is Map<String, dynamic>
+            ? (conversation['lastMessage'] as Map<String, dynamic>)['createdAt']
+                as String?
+            : null);
+
+    final unreadCount = conversation['unreadCount'] as int? ?? 0;
     final isUnread = unreadCount > 0;
 
-    return Container(
+    return GoldCard(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF1A1A1A),
-            const Color(0xFF0D0D0D),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isUnread
-              ? const Color(0xFFFFD700).withOpacity(0.5)
-              : const Color(0xFFFFD700).withOpacity(0.2),
-          width: isUnread ? 2 : 1,
-        ),
-        boxShadow: isUnread
-            ? [
-                BoxShadow(
-                  color: const Color(0xFFFFD700).withOpacity(0.2),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ]
-            : [],
-      ),
+      padding: EdgeInsets.zero,
+      showGlow: isUnread,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -266,10 +254,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => ChatScreen(
-                  partnerId: partner['id'],
+              LuxuryPageRoute(
+                page: ChatScreen(
+                  partnerId: partnerId,
                   partnerName: partnerName,
+                  partnerProfilePicture: displayPicture,
                 ),
               ),
             ).then((_) => _loadConversations());
@@ -281,37 +270,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 // Avatar with notification badge
                 Stack(
                   children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isUnread
-                              ? const Color(0xFFFFD700)
-                              : const Color(0xFFFFD700).withOpacity(0.3),
-                          width: isUnread ? 2.5 : 2,
-                        ),
-                        boxShadow: isUnread
-                            ? [
-                                BoxShadow(
-                                  color: const Color(0xFFFFD700).withOpacity(0.4),
-                                  blurRadius: 10,
-                                  spreadRadius: 2,
-                                ),
-                              ]
-                            : [],
-                      ),
-                      child: CircleAvatar(
-                        radius: 28,
-                        backgroundColor: const Color(0xFFFFD700),
-                        child: Text(
-                          partnerName.substring(0, 1).toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF000000),
-                          ),
-                        ),
-                      ),
+                    GoldAvatarFrame(
+                      imageUrl: displayPicture,
+                      initials: partnerName.split(' ').map((n) => n[0]).take(2).join(),
+                      size: 56,
+                      borderWidth: isUnread ? 2.5 : 2,
+                      showGlow: isUnread,
                     ),
                     if (isUnread)
                       Positioned(
@@ -320,16 +284,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFF5252), Color(0xFFFF1744)],
-                            ),
+                            color: LuxuryColors.errorGold,
                             shape: BoxShape.circle,
-                            border: Border.all(color: const Color(0xFF000000), width: 2),
+                            border: Border.all(color: LuxuryColors.mainBackground, width: 2),
                           ),
                           child: Text(
                             unreadCount > 9 ? '9+' : '$unreadCount',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: LuxuryTextStyles.bodySmall.copyWith(
+                              color: LuxuryColors.mainBackground,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                             ),
@@ -350,10 +312,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           Expanded(
                             child: Text(
                               partnerName,
-                              style: TextStyle(
+                              style: LuxuryTextStyles.bodyLarge.copyWith(
                                 fontSize: 18,
                                 fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
-                                color: Colors.white,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -362,11 +323,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           if (lastMessageTime != null)
                             Text(
                               _formatTimestamp(lastMessageTime),
-                              style: TextStyle(
-                                fontSize: 12,
+                              style: LuxuryTextStyles.bodySmall.copyWith(
                                 color: isUnread
-                                    ? const Color(0xFFFFD700)
-                                    : Colors.white54,
+                                    ? LuxuryColors.primaryGold
+                                    : LuxuryColors.subtleText,
                                 fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
                               ),
                             ),
@@ -378,9 +338,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           Expanded(
                             child: Text(
                               lastMessageText,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: isUnread ? Colors.white70 : Colors.white54,
+                              style: LuxuryTextStyles.bodyMedium.copyWith(
+                                color: isUnread ? LuxuryColors.mutedText : LuxuryColors.subtleText,
                                 fontWeight: isUnread ? FontWeight.w500 : FontWeight.normal,
                               ),
                               maxLines: 2,
@@ -396,7 +355,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 // Arrow icon
                 Icon(
                   Icons.chevron_right,
-                  color: isUnread ? const Color(0xFFFFD700) : Colors.white38,
+                  color: isUnread ? LuxuryColors.primaryGold : LuxuryColors.subtleText,
                   size: 24,
                 ),
               ],

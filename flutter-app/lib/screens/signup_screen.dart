@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../widgets/animated_components.dart';
 import 'chatbot_screen.dart';
 
 class SignupScreen extends StatefulWidget {
-  const SignupScreen({Key? key}) : super(key: key);
+  const SignupScreen({super.key});
 
   @override
   State<SignupScreen> createState() => _SignupScreenState();
@@ -126,7 +127,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+          LuxuryPageRoute(page: const ChatbotScreen()),
           (route) => false,
         );
       }
@@ -282,7 +283,7 @@ class _SignupScreenState extends State<SignupScreen> {
           ),
           const SizedBox(height: 24),
           DropdownButtonFormField<String>(
-            value: _educationLevel,
+            initialValue: _educationLevel,
             decoration: const InputDecoration(
               labelText: 'Education Level',
               border: OutlineInputBorder(),
@@ -355,7 +356,7 @@ class _SignupScreenState extends State<SignupScreen> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            value: _learningStyle,
+            initialValue: _learningStyle,
             decoration: const InputDecoration(
               labelText: 'Learning Style',
               border: OutlineInputBorder(),
@@ -451,7 +452,7 @@ class _SignupScreenState extends State<SignupScreen> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            value: _learningPace,
+            initialValue: _learningPace,
             decoration: const InputDecoration(
               labelText: 'Preferred Learning Pace',
               border: OutlineInputBorder(),
@@ -466,7 +467,7 @@ class _SignupScreenState extends State<SignupScreen> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            value: _motivationLevel,
+            initialValue: _motivationLevel,
             decoration: const InputDecoration(
               labelText: 'Motivation Level',
               border: OutlineInputBorder(),

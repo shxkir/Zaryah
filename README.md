@@ -132,15 +132,27 @@ Zaryah/
    ```
 
 3. **Update API URL** (if needed)
-   Edit `lib/services/api_service.dart` and update `baseUrl` if your backend runs on a different host:
-   ```dart
-   static const String baseUrl = 'http://YOUR_IP:3000/api';
+   The Flutter app now auto-detects the right backend host:
+   - Web/macOS/Windows/Linux → `http://localhost:3000/api`
+   - Android emulator → `http://10.0.2.2:3000/api`
+   - iOS simulator → `http://127.0.0.1:3000/api`
+
+   If you're testing on a physical device or a remote server, override the URL without editing code. You can provide either the raw host (`http://YOUR_IP:3000`) or the full API root (`http://YOUR_IP:3000/api`)—the app will ensure the `/api` prefix is present when needed:
+   ```bash
+   flutter run --dart-define=API_BASE_URL=http://YOUR_IP:3000
    ```
 
 4. **Run the app**
    ```bash
    flutter run
    ```
+
+### Troubleshooting: `ClientException: Failed to fetch`
+
+- This error means the Flutter client cannot reach `http://localhost:3000` (or whichever value you passed through `API_BASE_URL`).
+- Make sure the backend server is running locally (`npm start`) and that you can hit `http://localhost:3000/health` from a browser.
+- When running on an Android emulator use `10.0.2.2`, on an iOS simulator use `127.0.0.1`, and on physical devices pass your computer's LAN IP via `--dart-define=API_BASE_URL=http://YOUR_IP:3000`.
+- If you're testing from a different machine (e.g., Flutter web hosted elsewhere), `localhost` will point to that machine, so deploy the backend to a reachable host or tunnel it (ngrok, localhost.run, etc.) and update `API_BASE_URL` accordingly.
 
 ## API Endpoints
 

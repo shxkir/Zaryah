@@ -13,12 +13,14 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['id'] as String,
-      email: json['email'] as String,
+      id: json['id'] as String? ?? '',
+      email: json['email'] as String? ?? '',
       profile: json['profile'] != null
           ? ProfileModel.fromJson(json['profile'])
           : null,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : DateTime.now(),
     );
   }
 
@@ -50,6 +52,13 @@ class ProfileModel {
   final int availableHoursPerWeek;
   final String learningPace;
   final String motivationLevel;
+  final double? latitude;
+  final double? longitude;
+  final String? city;
+  final String? state;
+  final String? country;
+  final String locationPrivacy;
+  final String? profilePictureUrl; // Separate field for uploaded images
 
   ProfileModel({
     required this.id,
@@ -69,13 +78,23 @@ class ProfileModel {
     required this.availableHoursPerWeek,
     required this.learningPace,
     required this.motivationLevel,
+    this.latitude,
+    this.longitude,
+    this.city,
+    this.state,
+    this.country,
+    this.locationPrivacy = 'everyone',
+    this.profilePictureUrl,
   });
+
+  // Helper to get the best available profile picture
+  String? get displayPicture => profilePictureUrl ?? profilePicture;
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
     return ProfileModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      age: json['age'] as int,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? 'Unknown',
+      age: json['age'] as int? ?? 0,
       bio: json['bio'] as String?,
       profilePicture: json['profilePicture'] as String?,
       educationLevel: json['educationLevel'] as String? ?? '',
@@ -93,6 +112,13 @@ class ProfileModel {
       availableHoursPerWeek: json['availableHoursPerWeek'] as int? ?? 5,
       learningPace: json['learningPace'] as String? ?? 'Medium',
       motivationLevel: json['motivationLevel'] as String? ?? 'Medium',
+      latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
+      longitude: json['longitude'] != null ? (json['longitude'] as num).toDouble() : null,
+      city: json['city'] as String?,
+      state: json['state'] as String?,
+      country: json['country'] as String?,
+      locationPrivacy: json['locationPrivacy'] as String? ?? 'everyone',
+      profilePictureUrl: json['profilePictureUrl'] as String?,
     );
   }
 
@@ -115,6 +141,22 @@ class ProfileModel {
       'availableHoursPerWeek': availableHoursPerWeek,
       'learningPace': learningPace,
       'motivationLevel': motivationLevel,
+      'latitude': latitude,
+      'longitude': longitude,
+      'city': city,
+      'state': state,
+      'country': country,
+      'locationPrivacy': locationPrivacy,
+      'profilePictureUrl': profilePictureUrl,
     };
+  }
+
+  // Helper to get formatted location string
+  String get formattedLocation {
+    final parts = <String>[];
+    if (city != null && city!.isNotEmpty) parts.add(city!);
+    if (state != null && state!.isNotEmpty) parts.add(state!);
+    if (country != null && country!.isNotEmpty) parts.add(country!);
+    return parts.join(', ');
   }
 }

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/user_model.dart';
+import '../widgets/profile_avatar.dart';
+import '../widgets/animated_components.dart';
+import '../widgets/luxury_components.dart';
+import '../theme/luxury_theme.dart';
 import 'chat_screen.dart';
 import 'user_profile_detail_screen.dart';
 
@@ -18,6 +22,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
   String _selectedFilter = 'All';
+  String _selectedCountry = 'All Countries';
+  List<String> _availableCountries = [];
 
   @override
   void initState() {
@@ -38,6 +44,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
       setState(() {
         _allUsers = usersData.map((data) => UserModel.fromJson(data)).toList();
         _filteredUsers = _allUsers;
+        _extractCountries();
         _isLoading = false;
       });
     } catch (e) {
@@ -48,6 +55,63 @@ class _CommunityScreenState extends State<CommunityScreen> {
         );
       }
     }
+  }
+
+  Future<void> _loadUsersByCountry(String country) async {
+    setState(() => _isLoading = true);
+    try {
+      final usersData = await _apiService.getUsersByCountry(country);
+      setState(() {
+        _allUsers = usersData.map((data) => UserModel.fromJson(data)).toList();
+        _filteredUsers = _allUsers;
+        _selectedCountry = country;
+        _isLoading = false;
+        // Re-apply search filter if active
+        if (_searchController.text.isNotEmpty) {
+          _filterUsers(_searchController.text);
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load users from $country: $e')),
+        );
+      }
+    }
+  }
+
+  void _extractCountries() {
+    final predefinedCountries = [
+      'All Countries',
+      'India',
+      'Australia',
+      'United Arab Emirates',
+      'United States',
+      'United Kingdom',
+      'Singapore',
+      'Malaysia',
+      'Saudi Arabia',
+    ];
+
+    // Extract unique countries from user data
+    final userCountries = _allUsers
+        .where((user) => user.profile?.country != null && user.profile!.country!.isNotEmpty)
+        .map((user) => user.profile!.country!)
+        .toSet()
+        .toList();
+
+    // Merge and sort
+    final allCountries = {...predefinedCountries, ...userCountries}.toList();
+    allCountries.sort((a, b) {
+      if (a == 'All Countries') return -1;
+      if (b == 'All Countries') return 1;
+      return a.compareTo(b);
+    });
+
+    setState(() {
+      _availableCountries = allCountries;
+    });
   }
 
   void _filterUsers(String query) {
@@ -184,6 +248,45 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   ),
                   const SizedBox(height: 16),
 
+                  // Country filter dropdown
+                  if (_availableCountries.isNotEmpty)
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.public,
+                          color: LuxuryColors.primaryGold,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Country:',
+                          style: LuxuryTextStyles.bodyMedium.copyWith(
+                            color: LuxuryColors.primaryGold,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: GoldDropdown<String>(
+                            value: _selectedCountry,
+                            items: _availableCountries,
+                            onChanged: (String? country) {
+                              if (country != null) {
+                                if (country == 'All Countries') {
+                                  _loadUsers();
+                                } else {
+                                  _loadUsersByCountry(country);
+                                }
+                              }
+                            },
+                            itemLabel: (country) => country,
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (_availableCountries.isNotEmpty) const SizedBox(height: 16),
+
                   // Filter chips
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -310,8 +413,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => UserProfileDetailScreen(user: user),
+              LuxuryPageRoute(
+                page: UserProfileDetailScreen(user: user),
               ),
             );
           },
@@ -335,17 +438,12 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       ),
                     ],
                   ),
-                  child: CircleAvatar(
-                    radius: 32,
+                  child: ProfileAvatar(
+                    imageUrl: profile.displayPicture,
+                    name: profile.name,
+                    size: 64,
                     backgroundColor: const Color(0xFFFFD700),
-                    child: Text(
-                      profile.name.substring(0, 1).toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF000000),
-                      ),
-                    ),
+                    textColor: const Color(0xFF000000),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -364,60 +462,78 @@ class _CommunityScreenState extends State<CommunityScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.work_outline,
-                            size: 14,
-                            color: Color(0xFFFFD700),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              profile.occupation,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Colors.white70,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                      // Location (City, Country)
+                      if (profile.formattedLocation.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on,
+                              size: 14,
+                              color: Color(0xFFFFD700),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.school_outlined,
-                            size: 14,
-                            color: Color(0xFFFFD700),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              profile.educationLevel,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Colors.white70,
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                profile.formattedLocation,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.white70,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
-                      ),
-                      if (profile.bio != null && profile.bio!.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          profile.bio!,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withOpacity(0.6),
-                            fontStyle: FontStyle.italic,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                      ],
+                      // Occupation/Role
+                      if (profile.occupation.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.work_outline,
+                              size: 14,
+                              color: Color(0xFFFFD700),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                profile.occupation,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.white70,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                      ],
+                      // Education Level
+                      if (profile.educationLevel.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.school_outlined,
+                              size: 14,
+                              color: Color(0xFFFFD700),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                profile.educationLevel,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.white70,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ],
@@ -451,10 +567,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatScreen(
+                          LuxuryPageRoute(
+                            page: ChatScreen(
                               partnerId: user.id,
                               partnerName: profile.name,
+                              partnerProfilePicture: profile.displayPicture,
                             ),
                           ),
                         );

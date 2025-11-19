@@ -45,5 +45,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Zaryah needs access to your camera to take photos for posts.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Zaryah needs access to your photo library to select photos for posts.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Zaryah needs your location to show you on the world map and tag your posts.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Zaryah needs your location to show you on the world map and tag your posts.</string>
 </dict>
 </plist>

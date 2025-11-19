@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
 import '../models/user_model.dart';
+import '../services/api_service.dart';
+import '../theme/luxury_theme.dart';
+import '../widgets/luxury_components.dart';
+import '../widgets/profile_avatar.dart';
 import 'chatbot_screen.dart';
 import 'community_screen.dart';
+import 'map_screen.dart';
 import 'messages_screen.dart';
 import 'profile_screen.dart';
+import 'services_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,43 +44,63 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> get _screens => [
         DashboardScreen(user: _user),
+        const MapScreen(),
         const ChatbotScreen(),
-        const CommunityScreen(),
         const MessagesScreen(),
+        const CommunityScreen(),
+        const ServicesScreen(),
         const ProfileScreen(),
       ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: LuxuryColors.secondaryBackground,
+        selectedItemColor: LuxuryColors.primaryGold,
+        unselectedItemColor: LuxuryColors.mutedText,
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF000000),
-        selectedItemColor: const Color(0xFFFFD700),
-        unselectedItemColor: Colors.white.withOpacity(0.5),
+        selectedLabelStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w400,
+        ),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.map),
+            label: 'Map',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.chat_bubble),
             label: 'Chatbot',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.message),
+            label: 'Messages',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.people),
             label: 'Community',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.message),
-            label: 'Messages',
+            icon: Icon(Icons.business_center),
+            label: 'Services',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
@@ -180,324 +205,341 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final String greeting = _getGreeting();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF000000),
-      body: RefreshIndicator(
-        color: const Color(0xFFFFD700),
-        onRefresh: _loadDashboardData,
-        child: CustomScrollView(
-          slivers: [
-            // Stunning App Bar
-            SliverAppBar(
-              expandedHeight: 160,
-              floating: false,
-              pinned: true,
-              backgroundColor: const Color(0xFF000000),
-              flexibleSpace: FlexibleSpaceBar(
-                background: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        const Color(0xFFFFD700).withOpacity(0.3),
-                        const Color(0xFF000000),
-                      ],
+      backgroundColor: Colors.transparent,
+      body: GoldGradientBackground(
+        child: RefreshIndicator(
+          color: LuxuryColors.primaryGold,
+          onRefresh: _loadDashboardData,
+          child: CustomScrollView(
+            slivers: [
+              // Luxury App Bar
+              SliverAppBar(
+                expandedHeight: 160,
+                floating: false,
+                pinned: true,
+                backgroundColor: LuxuryColors.secondaryBackground,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: BoxDecoration(
+                      gradient: LuxuryColors.cardGradient,
                     ),
-                  ),
-                  child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                            '$greeting, $firstName',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              color: Colors.white70,
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '$greeting, $firstName',
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 1.2,
+                                      color: LuxuryColors.primaryGold,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            firstName,
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFFFD700),
+                            // Logout button
+                            GoldIconButton(
+                              icon: Icons.logout,
+                              size: 28,
+                              tooltip: 'Logout',
+                              onPressed: () {
+                                // Show confirmation dialog
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    backgroundColor: LuxuryColors.cardBackground,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                      side: const BorderSide(
+                                        color: LuxuryColors.borderGold,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    title: Text(
+                                      'Logout',
+                                      style: LuxuryTextStyles.h2,
+                                    ),
+                                    content: Text(
+                                      'Are you sure you want to logout?',
+                                      style: LuxuryTextStyles.bodyMedium,
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: Text(
+                                          'Cancel',
+                                          style: LuxuryTextStyles.bodyMedium.copyWith(
+                                            color: LuxuryColors.mutedText,
+                                          ),
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          // Clear any stored tokens/data
+                                          Navigator.of(context).pushNamedAndRemoveUntil(
+                                            '/login',
+                                            (route) => false,
+                                          );
+                                        },
+                                        child: const Text(
+                                          'Logout',
+                                          style: TextStyle(color: LuxuryColors.errorGold),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
 
-            // Content
-            if (_isLoading)
-              const SliverFillRemaining(
-                child: Center(
-                  child: CircularProgressIndicator(color: Color(0xFFFFD700)),
-                ),
-              )
-            else
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Stats Cards
-                      _buildSectionTitle('Your Stats'),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStatCard(
-                              'Total Users',
-                              '${_dashboardData?['stats']?['totalUsers'] ?? 0}',
-                              Icons.people_rounded,
-                              const Color(0xFF4CAF50),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildStatCard(
-                              'Messages',
-                              '${_dashboardData?['stats']?['unreadMessages'] ?? 0}',
-                              Icons.message_rounded,
-                              const Color(0xFFFF5722),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStatCard(
-                              'Conversations',
-                              '${_dashboardData?['stats']?['totalConversations'] ?? 0}',
-                              Icons.chat_bubble_rounded,
-                              const Color(0xFF2196F3),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Quick Actions
-                      _buildSectionTitle('Quick Actions'),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildActionButton(
-                              'Chat AI',
-                              Icons.smart_toy,
-                              const Color(0xFFFFD700),
-                              () {
-                                // Switch to chatbot tab
-                                final homeState =
-                                    context.findAncestorStateOfType<
-                                        _HomeScreenState>();
-                                homeState?.setState(() {
-                                  homeState._currentIndex = 1;
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildActionButton(
-                              'Browse Users',
-                              Icons.people,
-                              const Color(0xFF4CAF50),
-                              () {
-                                final homeState =
-                                    context.findAncestorStateOfType<
-                                        _HomeScreenState>();
-                                homeState?.setState(() {
-                                  homeState._currentIndex = 2;
-                                });
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildActionButton(
-                              'Messages',
-                              Icons.message,
-                              const Color(0xFF2196F3),
-                              () {
-                                final homeState =
-                                    context.findAncestorStateOfType<
-                                        _HomeScreenState>();
-                                homeState?.setState(() {
-                                  homeState._currentIndex = 3;
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildActionButton(
-                              'Edit Profile',
-                              Icons.edit,
-                              const Color(0xFFFF9800),
-                              () {
-                                final homeState =
-                                    context.findAncestorStateOfType<
-                                        _HomeScreenState>();
-                                homeState?.setState(() {
-                                  homeState._currentIndex = 4;
-                                });
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Recent Users
-                      if (_dashboardData?['recentUsers'] != null &&
-                          (_dashboardData!['recentUsers'] as List)
-                              .isNotEmpty) ...[
-                        _buildSectionTitle('Recent Chats'),
+              // Content
+              if (_isLoading)
+                const SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(color: LuxuryColors.primaryGold),
+                  ),
+                )
+              else
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Stats Cards
+                        _buildSectionTitle('Your Stats'),
                         const SizedBox(height: 16),
-                        SizedBox(
-                          height: 140,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount:
-                                (_dashboardData!['recentUsers'] as List).length,
-                            itemBuilder: (context, index) {
-                              final user = (_dashboardData!['recentUsers']
-                                  as List)[index];
-                              return _buildRecentUserCard(user);
-                            },
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Total Users',
+                                '${_dashboardData?['stats']?['totalUsers'] ?? 0}',
+                                Icons.people_rounded,
+                                LuxuryColors.primaryGold,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Messages',
+                                '${_dashboardData?['stats']?['unreadMessages'] ?? 0}',
+                                Icons.message_rounded,
+                                LuxuryColors.softGold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Conversations',
+                                '${_dashboardData?['stats']?['totalConversations'] ?? 0}',
+                                Icons.chat_bubble_rounded,
+                                LuxuryColors.primaryGold,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 32),
-                      ],
 
-                      // Suggested Users
-                      if (_dashboardData?['suggestedUsers'] != null &&
-                          (_dashboardData!['suggestedUsers'] as List)
-                              .isNotEmpty) ...[
-                        _buildSectionTitle('Suggested Connections'),
+                        // Quick Actions
+                        _buildSectionTitle('Quick Actions'),
                         const SizedBox(height: 16),
-                        ...(_dashboardData!['suggestedUsers'] as List)
-                            .map((user) {
-                          return _buildSuggestedUserCard(user);
-                        }),
-                        const SizedBox(height: 32),
-                      ],
-
-                      // Trending Topics
-                      if (_dashboardData?['trendingTopics'] != null &&
-                          (_dashboardData!['trendingTopics'] as List)
-                              .isNotEmpty) ...[
-                        _buildSectionTitle('Trending Topics'),
-                        const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: (_dashboardData!['trendingTopics'] as List)
-                              .map((topic) {
-                            return _buildTrendingChip(
-                              topic['topic'],
-                              topic['count'],
-                            );
-                          }).toList(),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildActionButton(
+                                'Chat AI',
+                                Icons.smart_toy,
+                                LuxuryColors.primaryGold,
+                                () {
+                                  // Switch to chatbot tab (index 2)
+                                  final homeState =
+                                      context.findAncestorStateOfType<
+                                          _HomeScreenState>();
+                                  homeState?.setState(() {
+                                    homeState._currentIndex = 2;
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildActionButton(
+                                'Browse Users',
+                                Icons.people,
+                                LuxuryColors.softGold,
+                                () {
+                                  // Switch to community tab (index 4)
+                                  final homeState =
+                                      context.findAncestorStateOfType<
+                                          _HomeScreenState>();
+                                  homeState?.setState(() {
+                                    homeState._currentIndex = 4;
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildActionButton(
+                                'Messages',
+                                Icons.message,
+                                LuxuryColors.primaryGold,
+                                () {
+                                  // Switch to messages tab (index 3)
+                                  final homeState =
+                                      context.findAncestorStateOfType<
+                                          _HomeScreenState>();
+                                  homeState?.setState(() {
+                                    homeState._currentIndex = 3;
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildActionButton(
+                                'Edit Profile',
+                                Icons.edit,
+                                LuxuryColors.softGold,
+                                () {
+                                  // Switch to profile tab (index 6)
+                                  final homeState =
+                                      context.findAncestorStateOfType<
+                                          _HomeScreenState>();
+                                  homeState?.setState(() {
+                                    homeState._currentIndex = 6;
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Recent Users
+                        if (_dashboardData?['recentUsers'] != null &&
+                            (_dashboardData!['recentUsers'] as List)
+                                .isNotEmpty) ...[
+                          _buildSectionTitle('Recent Chats'),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: 140,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount:
+                                  (_dashboardData!['recentUsers'] as List)
+                                      .length,
+                              itemBuilder: (context, index) {
+                                final user = (_dashboardData!['recentUsers']
+                                    as List)[index];
+                                return _buildRecentUserCard(user);
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                        ],
+
+                        // Suggested Users
+                        if (_dashboardData?['suggestedUsers'] != null &&
+                            (_dashboardData!['suggestedUsers'] as List)
+                                .isNotEmpty) ...[
+                          _buildSectionTitle('Suggested Connections'),
+                          const SizedBox(height: 16),
+                          ...(_dashboardData!['suggestedUsers'] as List)
+                              .map((user) {
+                            return _buildSuggestedUserCard(user);
+                          }),
+                          const SizedBox(height: 32),
+                        ],
+
+                        // Trending Topics
+                        if (_dashboardData?['trendingTopics'] != null &&
+                            (_dashboardData!['trendingTopics'] as List)
+                                .isNotEmpty) ...[
+                          _buildSectionTitle('Trending Topics'),
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children:
+                                (_dashboardData!['trendingTopics'] as List)
+                                    .map((topic) {
+                              return _buildTrendingChip(
+                                topic['topic'],
+                                topic['count'],
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 40),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildSectionTitle(String title) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 24,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFFFFD700), Color(0xFFFFB700)],
-            ),
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFFFFD700),
-          ),
-        ),
-      ],
+    return GoldSectionHeader(
+      text: title,
+      padding: const EdgeInsets.symmetric(vertical: 0),
     );
   }
 
   Widget _buildStatCard(
       String label, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color.withOpacity(0.2),
-            color.withOpacity(0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.2),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
+    return GoldStatsCard(
+      label: label,
+      value: value,
+      icon: icon,
+    );
+  }
+
+  Widget _buildActionButton(
+      String label, IconData icon, Color color, VoidCallback onTap) {
+    return GoldCard(
+      onTap: onTap,
+      showGlow: true,
+      padding: const EdgeInsets.symmetric(vertical: 18),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 36),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
+          Icon(icon, color: LuxuryColors.primaryGold, size: 28),
+          const SizedBox(height: 10),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.white70,
+            style: LuxuryTextStyles.bodyMedium.copyWith(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.8,
             ),
             textAlign: TextAlign.center,
           ),
@@ -506,115 +548,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildActionButton(
-      String label, IconData icon, Color color, VoidCallback onTap) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [color, color.withOpacity(0.7)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.4),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Column(
-              children: [
-                Icon(icon, color: Colors.white, size: 28),
-                const SizedBox(height: 8),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildRecentUserCard(Map<String, dynamic> user) {
     final profile = user['profile'];
     final name = profile?['name'] ?? 'Unknown';
+    final profilePictureUrl = profile?['profilePictureUrl'] as String?;
+    final profilePicture = profile?['profilePicture'] as String?;
+    final displayPicture = profilePictureUrl ?? profilePicture;
 
-    return Container(
+    return GoldCard(
       width: 120,
       margin: const EdgeInsets.only(right: 12),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1A1A), Color(0xFF0D0D0D)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.3)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            // Navigate to user profile or chat
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border:
-                        Border.all(color: const Color(0xFFFFD700), width: 2),
-                  ),
-                  child: CircleAvatar(
-                    radius: 30,
-                    backgroundColor: const Color(0xFFFFD700),
-                    child: Text(
-                      name.substring(0, 1).toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF000000),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  name.split(' ').first,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+      padding: const EdgeInsets.all(12),
+      showGlow: true,
+      onTap: () {
+        // Navigate to user profile or chat
+      },
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          GoldAvatarFrame(
+            imageUrl: displayPicture,
+            initials: name.split(' ').map((n) => n[0]).take(2).join(),
+            size: 60,
+            borderWidth: 2,
           ),
-        ),
+          const SizedBox(height: 8),
+          Text(
+            name.split(' ').first,
+            style: LuxuryTextStyles.bodySmall.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
@@ -623,38 +591,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final profile = user['profile'];
     final name = profile?['name'] ?? 'Unknown';
     final occupation = profile?['occupation'] ?? '';
+    final city = profile?['city'] ?? '';
+    final country = profile?['country'] ?? '';
+    final userId = user['id'];
+    final profilePictureUrl = profile?['profilePictureUrl'] as String?;
+    final profilePicture = profile?['profilePicture'] as String?;
+    final displayPicture = profilePictureUrl ?? profilePicture;
 
-    return Container(
+    // Build location string
+    String locationString = '';
+    if (city.isNotEmpty && country.isNotEmpty) {
+      locationString = '$city, $country';
+    } else if (city.isNotEmpty) {
+      locationString = city;
+    } else if (country.isNotEmpty) {
+      locationString = country;
+    }
+
+    return GoldCard(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1A1A), Color(0xFF0D0D0D)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.2)),
-      ),
+      showGlow: true,
       child: Row(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFFFD700), width: 2),
-            ),
-            child: CircleAvatar(
-              radius: 24,
-              backgroundColor: const Color(0xFFFFD700),
-              child: Text(
-                name.substring(0, 1).toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF000000),
-                ),
-              ),
-            ),
+          GoldAvatarFrame(
+            imageUrl: displayPicture,
+            initials: name.split(' ').map((n) => n[0]).take(2).join(),
+            size: 48,
+            borderWidth: 2,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -663,36 +627,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
+                  style: LuxuryTextStyles.bodyLarge.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                if (locationString.isNotEmpty)
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        size: 12,
+                        color: LuxuryColors.softGold,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          locationString,
+                          style: LuxuryTextStyles.caption,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 if (occupation.isNotEmpty)
                   Text(
                     occupation,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
-                    ),
+                    style: LuxuryTextStyles.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFD700), Color(0xFFFFB700)],
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.person_add_rounded,
-              color: Color(0xFF000000),
-              size: 20,
-            ),
+          GoldIconButton(
+            icon: Icons.person_add_rounded,
+            size: 20,
+            onPressed: () async {
+              try {
+                // Call API to add friend
+                await _apiService.sendConnectionRequest(userId);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Connection request sent to $name!'),
+                      backgroundColor: LuxuryColors.successGold,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: ${e.toString()}'),
+                      backgroundColor: LuxuryColors.errorGold,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
+            },
           ),
         ],
       ),
@@ -703,29 +704,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFFFD700).withOpacity(0.2),
-            const Color(0xFFFFD700).withOpacity(0.1),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.4)),
+        gradient: LuxuryColors.cardGradient,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: LuxuryColors.borderGold),
+        boxShadow: LuxuryColors.goldGlow(opacity: 0.2),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(
             Icons.trending_up,
-            color: Color(0xFFFFD700),
+            color: LuxuryColors.primaryGold,
             size: 16,
           ),
           const SizedBox(width: 6),
           Text(
             topic,
-            style: const TextStyle(
-              color: Color(0xFFFFD700),
-              fontSize: 14,
+            style: LuxuryTextStyles.bodyMedium.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -733,13 +728,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFD700),
+              gradient: LuxuryColors.goldGradient,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
               '$count',
               style: const TextStyle(
-                color: Color(0xFF000000),
+                color: LuxuryColors.mainBackground,
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
               ),

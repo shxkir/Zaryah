@@ -1,0 +1,44 @@
+===============================================
+    RESTART BACKEND & FLUTTER NOW
+===============================================
+
+Your backend is running with OLD code!
+The errors you showed me prove this.
+
+DO THIS NOW:
+
+1. Backend Terminal:
+   Press: Ctrl+C
+   Type: node server.js
+   Wait for: "🚀 Zaryah backend server running"
+
+2. Flutter Terminal:
+   Press: q
+   Type: flutter run
+   Wait 30 seconds for app to load
+
+3. Test in app:
+   - Map tab (will show users)
+   - Profile picture upload (will work)
+   - Finance tab (will show Apple, Microsoft, Google stocks)
+   - Add friend (will work)
+
+===============================================
+
+Why US stocks instead of Indian stocks?
+
+Your TwelveData API key is FREE TIER.
+Free tier = US stocks only ✅
+Paid tier = Indian stocks ($10+/month)
+
+US stocks work great for testing!
+(Apple, Microsoft, Google, Amazon, Tesla)
+
+===============================================
+
+If you want Indian stocks:
+Upgrade at: https://twelvedata.com/pricing
+
+For now, just restart and test with US stocks!
+
+===============================================

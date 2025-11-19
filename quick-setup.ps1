@@ -2,6 +2,8 @@ Write-Host "Zaryah Database Setup" -ForegroundColor Cyan
 Write-Host ""
 
 $pgPassword = Read-Host "Enter your PostgreSQL password"
+$openAiApiKey = Read-Host "Enter your OpenAI API key"
+$pineconeApiKey = Read-Host "Enter your Pinecone API key"
 
 Write-Host ""
 Write-Host "Updating .env file..." -ForegroundColor Yellow
@@ -17,11 +19,11 @@ JWT_SECRET="zaryah-super-secret-jwt-key-2024-change-in-production"
 # Server Port
 PORT=3000
 
-# Google AI Studio API Key (Gemini)
-GOOGLE_API_KEY="AIzaSyBFqV-xtwHZynh_c35LXuaTRWBRxH_GcSc"
+# OpenAI API Key (for chatbot)
+OPENAI_API_KEY="$openAiApiKey"
 
 # Pinecone API Key
-PINECONE_API_KEY="pcsk_41qBGm_Nz3myudzw61exBfqE1SWG5yPfEkXDSt9nNwe8kFju3HEshAR9tz3m6kMdTsXPJ2"
+PINECONE_API_KEY="$pineconeApiKey"
 "@
 
 Set-Content -Path $envPath -Value $envContent

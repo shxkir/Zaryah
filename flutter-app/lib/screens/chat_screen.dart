@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
 import '../models/message_model.dart';
+import '../services/api_service.dart';
+import '../widgets/profile_avatar.dart';
 
 class ChatScreen extends StatefulWidget {
   final String partnerId;
   final String partnerName;
+  final String? partnerProfilePicture;
 
   const ChatScreen({
     super.key,
     required this.partnerId,
     required this.partnerName,
+    this.partnerProfilePicture,
   });
 
   @override
@@ -98,17 +101,12 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            CircleAvatar(
-              radius: 18,
+            ProfileAvatar(
+              imageUrl: widget.partnerProfilePicture,
+              name: widget.partnerName,
+              size: 36,
               backgroundColor: const Color(0xFFFFD700),
-              child: Text(
-                widget.partnerName.substring(0, 1).toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF000000),
-                ),
-              ),
+              textColor: const Color(0xFF000000),
             ),
             const SizedBox(width: 12),
             Expanded(

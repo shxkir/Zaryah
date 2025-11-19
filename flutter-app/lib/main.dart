@@ -2,117 +2,32 @@ import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/api_service.dart';
+import 'theme/luxury_theme.dart';
+import 'widgets/brand_logo.dart';
+import 'widgets/luxury_components.dart';
+import 'widgets/zaryah_wordmark.dart';
+import 'widgets/animated_components.dart';
 
 void main() {
-  runApp(const ZarayahApp());
+  runApp(const ZaryahApp());
 }
 
-class ZarayahApp extends StatelessWidget {
-  const ZarayahApp({Key? key}) : super(key: key);
+class ZaryahApp extends StatelessWidget {
+  const ZaryahApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Zaryah',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF000000), // Pure black
-        primaryColor: const Color(0xFFFFD700), // Gold
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFFFD700), // Gold
-          secondary: Color(0xFFFFA500), // Orange-gold accent
-          surface: Color(0xFF0D0D0D), // Very dark gray (almost black)
-          onPrimary: Color(0xFF000000),
-          onSecondary: Color(0xFF000000),
-          onSurface: Color(0xFFFFD700),
-        ),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF000000), // Pure black
-          foregroundColor: Color(0xFFFFD700), // Gold
-          elevation: 0,
-          centerTitle: true,
-        ),
-        cardTheme: const CardThemeData(
-          color: Color(0xFF0D0D0D), // Very dark cards
-          elevation: 8,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(16)),
-            side: BorderSide(
-              color: Color(0xFFFFD700), // Gold border
-              width: 1.5,
-            ),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color(0xFF0D0D0D),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFFFD700)), // Gold
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFFFD700), width: 1.5), // Gold
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: Color(0xFFFFD700), // Gold
-              width: 2.5,
-            ),
-          ),
-          labelStyle: const TextStyle(color: Color(0xFFFFD700)), // Gold
-          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFFFD700), // Gold button
-            foregroundColor: const Color(0xFF000000), // Black text
-            elevation: 12,
-            shadowColor: const Color(0xFFFFD700).withValues(alpha: 0.6), // Gold shadow
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
-          ),
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            foregroundColor: const Color(0xFFFFD700), // Gold
-          ),
-        ),
-        textTheme: const TextTheme(
-          headlineLarge: TextStyle(
-            color: Color(0xFFFFD700), // Gold
-            fontWeight: FontWeight.bold,
-          ),
-          headlineMedium: TextStyle(
-            color: Color(0xFFFFD700), // Gold
-            fontWeight: FontWeight.bold,
-          ),
-          titleMedium: TextStyle(
-            color: Color(0xFFFFD700), // Gold
-          ),
-          bodyLarge: TextStyle(
-            color: Colors.white,
-          ),
-          bodyMedium: TextStyle(
-            color: Color(0xFFE0E0E0),
-          ),
-        ),
-        iconTheme: const IconThemeData(
-          color: Color(0xFFFFD700), // Gold
-        ),
-      ),
+      theme: LuxuryTheme.theme,
       home: const SplashScreen(),
     );
   }
 }
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -134,9 +49,8 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) =>
-              isLoggedIn ? const HomeScreen() : const LoginScreen(),
+        LuxuryPageRoute(
+          page: isLoggedIn ? const HomeScreen() : const LoginScreen(),
         ),
       );
     }
@@ -144,37 +58,63 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.school_rounded,
-              size: 100,
-              color: const Color(0xFFFFD700), // Gold color
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Zaryah',
-              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFFFFD700), // Gold color
-                    fontSize: 48,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'AI-Powered Personalized Learning',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(0xFFFFD700), // Gold color
-                    fontSize: 16,
-                  ),
-            ),
-            const SizedBox(height: 48),
-            const CircularProgressIndicator(),
-          ],
-        ),
+    return const Scaffold(
+      backgroundColor: Colors.transparent,
+      body: GoldGradientBackground(child: _SplashContent()),
+    );
+  }
+}
+
+class _SplashContent extends StatelessWidget {
+  const _SplashContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          BrandLogo(size: 160, style: BrandLogoStyle.minimal),
+          SizedBox(height: 18),
+          ZaryahWordmark(fontSize: 52),
+          SizedBox(height: 12),
+          _SplashTagline(),
+          SizedBox(height: 40),
+          _SplashLoader(),
+        ],
+      ),
+    );
+  }
+}
+
+class _SplashTagline extends StatelessWidget {
+  const _SplashTagline();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'AI-Powered Personalized Learning',
+      textAlign: TextAlign.center,
+      style: LuxuryTextStyles.bodyLarge.copyWith(
+            color: LuxuryColors.softGold,
+            letterSpacing: 2,
+          ),
+    );
+  }
+}
+
+class _SplashLoader extends StatelessWidget {
+  const _SplashLoader();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 54,
+      width: 54,
+      child: CircularProgressIndicator(
+        strokeWidth: 4,
+        valueColor: const AlwaysStoppedAnimation<Color>(LuxuryColors.primaryGold),
+        backgroundColor: LuxuryColors.borderGold,
       ),
     );
   }

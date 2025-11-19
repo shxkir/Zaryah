@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
 import '../models/user_model.dart';
+import '../services/api_service.dart';
+import '../utils/initials_helper.dart';
+import '../widgets/simple_avatar.dart';
 import 'chat_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
@@ -57,11 +59,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Center(
-                        child: CircleAvatar(
-                          radius: 60,
+                        child: SimpleAvatar(
+                          size: 120,
                           backgroundColor: const Color(0xFFFFD700),
                           child: Text(
-                            _user!.profile?.name.substring(0, 1).toUpperCase() ?? 'U',
+                            initialsFromName(_user!.profile?.name),
                             style: const TextStyle(
                               fontSize: 48,
                               fontWeight: FontWeight.bold,

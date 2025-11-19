@@ -13,6 +13,7 @@ const {
   queryUsersFromPinecone,
   getAllUsersFromPinecone,
 } = require('./pineconeUtils');
+const { geocodeAddress, reverseGeocode } = require('./geocodingUtils');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -34,20 +35,32 @@ const EMAILJS_PRIVATE_KEY = 'mg58cX4sZL-BLpKRSfZ8L';
 // In-memory storage for password reset tokens (in production, use Redis or database)
 const resetTokens = new Map(); // Map<token, {email, expiresAt}>
 
-// Initialize Pinecone on startup
+// Initialize Pinecone on startup (with timeout to prevent blocking)
 let pineconeReady = false;
-initializePineconeIndex()
-  .then(() => {
+
+// Wrap Pinecone initialization with a timeout
+const initPineconeWithTimeout = async () => {
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Pinecone initialization timeout after 10s')), 10000)
+  );
+
+  try {
+    await Promise.race([initializePineconeIndex(), timeout]);
     pineconeReady = true;
     console.log('✅ Pinecone initialized successfully');
-  })
-  .catch(err => {
-    console.error('❌ Failed to initialize Pinecone:', err);
-  });
+  } catch (err) {
+    console.error('❌ Failed to initialize Pinecone:', err.message);
+    console.log('⚠️  Server will continue without Pinecone (will use PostgreSQL only)');
+  }
+};
+
+// Start initialization in background (non-blocking)
+initPineconeWithTimeout();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Increase payload limit for base64 images
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // JWT Authentication Middleware
 const authenticateToken = (req, res, next) => {
@@ -66,6 +79,20 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
+// Import route modules
+const housingRoutes = require('./routes/housing');
+const financeRoutes = require('./routes/finance');
+const chatbotRoutes = require('./routes/chatbot');
+const uploadRoutes = require('./routes/upload');
+const connectionsRoutes = require('./routes/connections');
+
+// Mount route modules
+app.use('/api/housing', housingRoutes);
+app.use('/api/finance', financeRoutes);
+app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/connections', connectionsRoutes);
 
 // Routes
 
@@ -340,10 +367,26 @@ app.post('/api/reset-password', async (req, res) => {
 });
 
 // GET /api/users - Get all users with profiles (protected)
+// Supports optional country filter: ?country=India
 app.get('/api/users', authenticateToken, async (req, res) => {
   try {
+    const { country } = req.query;
+
+    // Build query with optional country filter
+    const whereClause = {};
+    if (country && country.trim() !== '' && country !== 'All Countries') {
+      whereClause.profile = {
+        country: {
+          equals: country.trim(),
+          mode: 'insensitive', // Case-insensitive matching
+        },
+      };
+    }
+
     const users = await prisma.user.findMany({
+      where: whereClause,
       include: { profile: true },
+      orderBy: { createdAt: 'desc' },
     });
 
     // Remove password from response
@@ -355,6 +398,55 @@ app.get('/api/users', authenticateToken, async (req, res) => {
     res.json({ users: usersWithoutPassword });
   } catch (error) {
     console.error('Get users error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// GET /api/users/map - Get all users with location data for map (protected)
+app.get('/api/users/map', authenticateToken, async (req, res) => {
+  try {
+    const currentUserId = req.user.userId;
+
+    // Get all users with location data
+    const users = await prisma.user.findMany({
+      where: {
+        profile: {
+          is: {
+            latitude: { not: null },
+            longitude: { not: null },
+          },
+        },
+      },
+      include: { profile: true },
+    });
+
+    // Filter based on privacy settings
+    const filteredUsers = users.filter(user => {
+      // Don't show users who have private location
+      if (user.profile?.locationPrivacy === 'private' && user.id !== currentUserId) {
+        return false;
+      }
+      // TODO: Implement 'connections' privacy check when friend system exists
+      return true;
+    }).map(user => ({
+      id: user.id,
+      email: user.email,
+      profile: {
+        name: user.profile?.name || '',
+        latitude: user.profile?.latitude,
+        longitude: user.profile?.longitude,
+        city: user.profile?.city || '',
+        country: user.profile?.country || '',
+        occupation: user.profile?.occupation || '',
+        educationLevel: user.profile?.educationLevel || '',
+        subjects: user.profile?.subjects || [],
+        profilePicture: user.profile?.profilePicture || '',
+      },
+    }));
+
+    res.json({ users: filteredUsers });
+  } catch (error) {
+    console.error('Get map users error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
@@ -425,6 +517,8 @@ app.post('/api/chatbot', authenticateToken, async (req, res) => {
         ${profile.learningGoals || ''}
         ${profile.subjects?.join(' ') || ''}
         ${profile.previousExperience || ''}
+        ${profile.city || ''}
+        ${profile.country || ''}
       `.toLowerCase();
 
       // Count keyword matches
@@ -446,6 +540,14 @@ app.post('/api/chatbot', authenticateToken, async (req, res) => {
             score += 30;
           }
         });
+      }
+
+      // Boost for location matches (country or city)
+      if (profile.country && queryLower.includes(profile.country.toLowerCase())) {
+        score += 100; // High boost for country match
+      }
+      if (profile.city && queryLower.includes(profile.city.toLowerCase())) {
+        score += 80; // High boost for city match
       }
 
       return { user, score };
@@ -474,6 +576,8 @@ app.post('/api/chatbot', authenticateToken, async (req, res) => {
           availableHoursPerWeek: item.user.profile?.availableHoursPerWeek || 0,
           learningPace: item.user.profile?.learningPace || '',
           motivationLevel: item.user.profile?.motivationLevel || '',
+          city: item.user.profile?.city || '',
+          country: item.user.profile?.country || '',
         }
       }));
 
@@ -952,9 +1056,15 @@ app.get('/api/profile/me', authenticateToken, async (req, res) => {
 app.put('/api/profile/me', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
+
+    console.log(`📝 Profile update request for user ${userId}`);
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+
+    // Destructure all possible fields from request body
     const {
       name,
       age,
+      bio,
       educationLevel,
       occupation,
       learningGoals,
@@ -967,40 +1077,182 @@ app.put('/api/profile/me', authenticateToken, async (req, res) => {
       availableHoursPerWeek,
       learningPace,
       motivationLevel,
+      profilePicture,
+      profilePictureUrl,
+      city,
+      state,
+      country,
+      latitude,
+      longitude,
+      locationPrivacy,
     } = req.body;
 
-    // Update profile
-    const updatedUser = await prisma.user.update({
+    // Build update object dynamically - only include fields that are actually provided
+    const updateData = {};
+
+    // String fields
+    if (name !== undefined && name !== null) updateData.name = String(name);
+    if (bio !== undefined) updateData.bio = bio ? String(bio) : '';
+    if (educationLevel !== undefined) updateData.educationLevel = educationLevel ? String(educationLevel) : '';
+    if (occupation !== undefined) updateData.occupation = occupation ? String(occupation) : '';
+    if (learningGoals !== undefined) updateData.learningGoals = learningGoals ? String(learningGoals) : '';
+    if (learningStyle !== undefined) updateData.learningStyle = learningStyle ? String(learningStyle) : '';
+    if (previousExperience !== undefined) updateData.previousExperience = previousExperience ? String(previousExperience) : '';
+    if (strengths !== undefined) updateData.strengths = strengths ? String(strengths) : '';
+    if (weaknesses !== undefined) updateData.weaknesses = weaknesses ? String(weaknesses) : '';
+    if (specificChallenges !== undefined) updateData.specificChallenges = specificChallenges ? String(specificChallenges) : '';
+    if (learningPace !== undefined) updateData.learningPace = learningPace ? String(learningPace) : 'Medium';
+    if (motivationLevel !== undefined) updateData.motivationLevel = motivationLevel ? String(motivationLevel) : 'Medium';
+
+    // Number fields with safe parsing
+    if (age !== undefined && age !== null) {
+      const parsedAge = parseInt(age);
+      updateData.age = isNaN(parsedAge) ? 0 : parsedAge;
+    }
+    if (availableHoursPerWeek !== undefined && availableHoursPerWeek !== null) {
+      const parsedHours = parseInt(availableHoursPerWeek);
+      updateData.availableHoursPerWeek = isNaN(parsedHours) ? 5 : parsedHours;
+    }
+
+    // Array fields
+    if (subjects !== undefined) {
+      updateData.subjects = Array.isArray(subjects) ? subjects : [];
+    }
+
+    // Profile picture - prioritize profilePictureUrl over profilePicture
+    if (profilePictureUrl !== undefined) {
+      updateData.profilePictureUrl = profilePictureUrl;
+      updateData.profilePicture = profilePictureUrl; // Keep both in sync
+    } else if (profilePicture !== undefined) {
+      updateData.profilePicture = profilePicture;
+      updateData.profilePictureUrl = profilePicture;
+    }
+
+    // Location fields
+    if (city !== undefined) updateData.city = city ? String(city) : null;
+    if (state !== undefined) updateData.state = state ? String(state) : null;
+    if (country !== undefined) updateData.country = country ? String(country) : null;
+
+    // Coordinates with safe parsing
+    if (latitude !== undefined) {
+      if (latitude === null || latitude === '') {
+        updateData.latitude = null;
+      } else {
+        const parsedLat = parseFloat(latitude);
+        updateData.latitude = isNaN(parsedLat) ? null : parsedLat;
+      }
+    }
+    if (longitude !== undefined) {
+      if (longitude === null || longitude === '') {
+        updateData.longitude = null;
+      } else {
+        const parsedLon = parseFloat(longitude);
+        updateData.longitude = isNaN(parsedLon) ? null : parsedLon;
+      }
+    }
+
+    if (locationPrivacy !== undefined) {
+      updateData.locationPrivacy = locationPrivacy || 'everyone';
+    }
+
+    console.log('✅ Update data prepared:', Object.keys(updateData));
+
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
       where: { id: userId },
-      data: {
-        profile: {
-          update: {
-            ...(name && { name }),
-            ...(age && { age: parseInt(age) }),
-            ...(educationLevel && { educationLevel }),
-            ...(occupation && { occupation }),
-            ...(learningGoals && { learningGoals }),
-            ...(subjects && { subjects }),
-            ...(learningStyle && { learningStyle }),
-            ...(previousExperience && { previousExperience }),
-            ...(strengths && { strengths }),
-            ...(weaknesses && { weaknesses }),
-            ...(specificChallenges && { specificChallenges }),
-            ...(availableHoursPerWeek && { availableHoursPerWeek: parseInt(availableHoursPerWeek) }),
-            ...(learningPace && { learningPace }),
-            ...(motivationLevel && { motivationLevel }),
-          },
-        },
-      },
-      include: {
-        profile: true,
-      },
+      include: { profile: true },
     });
 
-    res.json({ message: 'Profile updated successfully', user: updatedUser });
+    if (!existingUser) {
+      console.error(`❌ User not found: ${userId}`);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    let updatedUser;
+
+    if (existingUser.profile) {
+      // Update existing profile
+      console.log('📝 Updating existing profile...');
+      updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          profile: {
+            update: updateData,
+          },
+        },
+        include: {
+          profile: true,
+        },
+      });
+      console.log('✅ Profile updated successfully');
+    } else {
+      // Create profile if it doesn't exist (should rarely happen)
+      console.log('📝 Creating new profile...');
+      updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          profile: {
+            create: {
+              name: name || 'User',
+              age: (age && !isNaN(parseInt(age))) ? parseInt(age) : 0,
+              bio: bio || '',
+              educationLevel: educationLevel || '',
+              occupation: occupation || '',
+              learningGoals: learningGoals || '',
+              subjects: Array.isArray(subjects) ? subjects : [],
+              learningStyle: learningStyle || '',
+              previousExperience: previousExperience || '',
+              strengths: strengths || '',
+              weaknesses: weaknesses || '',
+              specificChallenges: specificChallenges || '',
+              availableHoursPerWeek: (availableHoursPerWeek && !isNaN(parseInt(availableHoursPerWeek))) ? parseInt(availableHoursPerWeek) : 5,
+              learningPace: learningPace || 'Medium',
+              motivationLevel: motivationLevel || 'Medium',
+              profilePictureUrl: profilePictureUrl || profilePicture || null,
+              profilePicture: profilePictureUrl || profilePicture || null,
+              city: city || null,
+              state: state || null,
+              country: country || null,
+              latitude: (latitude && !isNaN(parseFloat(latitude))) ? parseFloat(latitude) : null,
+              longitude: (longitude && !isNaN(parseFloat(longitude))) ? parseFloat(longitude) : null,
+              locationPrivacy: locationPrivacy || 'everyone',
+            },
+          },
+        },
+        include: {
+          profile: true,
+        },
+      });
+      console.log('✅ New profile created successfully');
+    }
+
+    // Update Pinecone if available (non-blocking)
+    if (pineconeReady) {
+      try {
+        await storeUserInPinecone(updatedUser);
+      } catch (pineconeError) {
+        console.error('⚠️ Pinecone update failed (non-critical):', pineconeError.message);
+      }
+    }
+
+    // Remove password from response
+    const { password, ...userWithoutPassword } = updatedUser;
+
+    console.log(`✅ Profile update successful for user ${userId}`);
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: userWithoutPassword
+    });
   } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    console.error('❌ Update profile error:', error);
+    console.error('Error stack:', error.stack);
+
+    res.status(500).json({
+      error: 'Failed to update profile',
+      details: error.message,
+      hint: 'Check server logs for more details'
+    });
   }
 });
 
@@ -1120,6 +1372,340 @@ app.get('/api/dashboard', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Dashboard error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// POST /api/geocode/address - Geocode address to coordinates (protected)
+app.post('/api/geocode/address', authenticateToken, async (req, res) => {
+  try {
+    const { address } = req.body;
+
+    if (!address) {
+      return res.status(400).json({ error: 'Address is required' });
+    }
+
+    const result = await geocodeAddress(address);
+
+    if (!result) {
+      return res.status(404).json({ error: 'Location not found' });
+    }
+
+    res.json({ location: result });
+  } catch (error) {
+    console.error('Geocoding error:', error);
+    res.status(500).json({ error: 'Geocoding failed', details: error.message });
+  }
+});
+
+// POST /api/geocode/reverse - Reverse geocode coordinates to address (protected)
+app.post('/api/geocode/reverse', authenticateToken, async (req, res) => {
+  try {
+    const { latitude, longitude } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({ error: 'Latitude and longitude are required' });
+    }
+
+    const result = await reverseGeocode(parseFloat(latitude), parseFloat(longitude));
+
+    if (!result) {
+      return res.status(404).json({ error: 'Location not found' });
+    }
+
+    res.json({ location: result });
+  } catch (error) {
+    console.error('Reverse geocoding error:', error);
+    res.status(500).json({ error: 'Reverse geocoding failed', details: error.message });
+  }
+});
+
+// PUT /api/profile/location - Update user location (protected)
+app.put('/api/profile/location', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { latitude, longitude, city, state, country, locationPrivacy } = req.body;
+
+    // Allow either coordinates OR city/country for geocoding
+    let finalLat = latitude;
+    let finalLon = longitude;
+    let finalCity = city;
+    let finalState = state;
+    let finalCountry = country;
+
+    // If city/country provided but no coordinates, geocode
+    if ((!latitude || !longitude) && (city || country)) {
+      const address = [city, state, country].filter(Boolean).join(', ');
+      const geocoded = await geocodeAddress(address);
+
+      if (geocoded) {
+        finalLat = geocoded.latitude;
+        finalLon = geocoded.longitude;
+        finalCity = geocoded.city || city;
+        finalState = geocoded.state || state;
+        finalCountry = geocoded.country || country;
+      }
+    }
+
+    // If coordinates provided but no city/state/country, reverse geocode
+    if (latitude && longitude && !city && !state && !country) {
+      const reversed = await reverseGeocode(parseFloat(latitude), parseFloat(longitude));
+
+      if (reversed) {
+        finalCity = reversed.city;
+        finalState = reversed.state;
+        finalCountry = reversed.country;
+      }
+    }
+
+    if (!finalLat || !finalLon) {
+      return res.status(400).json({ error: 'Could not determine location coordinates' });
+    }
+
+    // Update profile with location
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        profile: {
+          update: {
+            latitude: parseFloat(finalLat),
+            longitude: parseFloat(finalLon),
+            city: finalCity || null,
+            state: finalState || null,
+            country: finalCountry || null,
+            ...(locationPrivacy && { locationPrivacy }),
+          },
+        },
+      },
+      include: {
+        profile: true,
+      },
+    });
+
+    // Remove password from response
+    const { password, ...userWithoutPassword } = updatedUser;
+
+    res.json({ message: 'Location updated successfully', user: userWithoutPassword });
+  } catch (error) {
+    console.error('Update location error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// POST /api/posts - Create a new post (protected)
+app.post('/api/posts', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { caption, imageUrl, latitude, longitude, city, country, privacy } = req.body;
+
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'Image URL is required' });
+    }
+
+    // Create post
+    const post = await prisma.post.create({
+      data: {
+        userId,
+        caption: caption || null,
+        imageUrl,
+        latitude: latitude ? parseFloat(latitude) : null,
+        longitude: longitude ? parseFloat(longitude) : null,
+        city: city || null,
+        country: country || null,
+        privacy: privacy || 'everyone',
+      },
+      include: {
+        user: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+    });
+
+    res.status(201).json({ message: 'Post created successfully', post });
+  } catch (error) {
+    console.error('Create post error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// GET /api/posts - Get all posts (protected)
+app.get('/api/posts', authenticateToken, async (req, res) => {
+  try {
+    const currentUserId = req.user.userId;
+    const { country } = req.query; // Optional filter by country
+
+    // Build query
+    const where = {};
+    if (country) {
+      where.country = country;
+    }
+
+    const posts = await prisma.post.findMany({
+      where,
+      include: {
+        user: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    // Filter based on privacy settings
+    const filteredPosts = posts.filter(post => {
+      if (post.privacy === 'private' && post.userId !== currentUserId) {
+        return false;
+      }
+      // TODO: Implement 'connections' privacy check when friend system exists
+      return true;
+    }).map(post => ({
+      id: post.id,
+      userId: post.userId,
+      caption: post.caption,
+      imageUrl: post.imageUrl,
+      latitude: post.latitude,
+      longitude: post.longitude,
+      city: post.city,
+      country: post.country,
+      privacy: post.privacy,
+      createdAt: post.createdAt,
+      user: {
+        id: post.user.id,
+        email: post.user.email,
+        profile: {
+          name: post.user.profile?.name || '',
+          profilePicture: post.user.profile?.profilePicture || '',
+          occupation: post.user.profile?.occupation || '',
+          educationLevel: post.user.profile?.educationLevel || '',
+        },
+      },
+    }));
+
+    res.json({ posts: filteredPosts });
+  } catch (error) {
+    console.error('Get posts error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// GET /api/posts/map - Get posts with location for map view (protected)
+app.get('/api/posts/map', authenticateToken, async (req, res) => {
+  try {
+    const currentUserId = req.user.userId;
+
+    const posts = await prisma.post.findMany({
+      where: {
+        latitude: { not: null },
+        longitude: { not: null },
+      },
+      include: {
+        user: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    // Filter based on privacy
+    const filteredPosts = posts.filter(post => {
+      if (post.privacy === 'private' && post.userId !== currentUserId) {
+        return false;
+      }
+      return true;
+    }).map(post => ({
+      id: post.id,
+      userId: post.userId,
+      caption: post.caption,
+      imageUrl: post.imageUrl,
+      latitude: post.latitude,
+      longitude: post.longitude,
+      city: post.city,
+      country: post.country,
+      createdAt: post.createdAt,
+      user: {
+        id: post.user.id,
+        profile: {
+          name: post.user.profile?.name || '',
+          profilePicture: post.user.profile?.profilePicture || '',
+        },
+      },
+    }));
+
+    res.json({ posts: filteredPosts });
+  } catch (error) {
+    console.error('Get map posts error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// GET /api/posts/:postId - Get single post (protected)
+app.get('/api/posts/:postId', authenticateToken, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const currentUserId = req.user.userId;
+
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        user: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Check privacy
+    if (post.privacy === 'private' && post.userId !== currentUserId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    res.json({ post });
+  } catch (error) {
+    console.error('Get post error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// DELETE /api/posts/:postId - Delete a post (protected)
+app.delete('/api/posts/:postId', authenticateToken, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.userId;
+
+    // Check if post exists and belongs to user
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    if (post.userId !== userId) {
+      return res.status(403).json({ error: 'You can only delete your own posts' });
+    }
+
+    await prisma.post.delete({
+      where: { id: postId },
+    });
+
+    res.json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('Delete post error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });

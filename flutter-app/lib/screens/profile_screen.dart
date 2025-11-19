@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/user_model.dart';
+import '../theme/luxury_theme.dart';
+import '../widgets/luxury_components.dart';
+import '../widgets/profile_avatar.dart';
+import '../widgets/animated_components.dart';
 import 'edit_profile_screen.dart';
 import 'login_screen.dart';
 
@@ -15,6 +19,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _apiService = ApiService();
   UserModel? _user;
   bool _isLoading = true;
+  bool _pushNotificationsEnabled = true;
+  bool _emailNotificationsEnabled = false;
+  bool _inAppNotificationsEnabled = true;
 
   @override
   void initState() {
@@ -61,23 +68,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF000000),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF000000),
-        elevation: 0,
-        title: const Text(
-          'Profile',
-          style: TextStyle(color: Color(0xFFFFD700)),
-        ),
+      backgroundColor: Colors.transparent,
+      appBar: GoldAppBar(
+        title: 'Profile',
         actions: [
           if (_user != null)
-            IconButton(
-              icon: const Icon(Icons.edit, color: Color(0xFFFFD700)),
+            GoldIconButton(
+              icon: Icons.edit,
               onPressed: () async {
                 final result = await Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => EditProfileScreen(user: _user!),
+                  LuxuryPageRoute(
+                    page: EditProfileScreen(user: _user!),
                   ),
                 );
                 if (result == true) {
@@ -87,83 +89,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
         ],
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFFD700)),
-            )
-          : _user == null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Failed to load profile',
-                        style: TextStyle(color: Colors.white70, fontSize: 16),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadProfile,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFD700),
-                          foregroundColor: const Color(0xFF000000),
+      body: GoldGradientBackground(
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: LuxuryColors.primaryGold),
+              )
+            : _user == null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Failed to load profile',
+                          style: LuxuryTextStyles.bodyLarge,
                         ),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  color: const Color(0xFFFFD700),
-                  onRefresh: _loadProfile,
-                  child: ListView(
-                    padding: const EdgeInsets.all(20),
-                    children: [
-                      // Profile Header
-                      Center(
-                        child: Column(
-                          children: [
-                            CircleAvatar(
-                              radius: 60,
-                              backgroundColor: const Color(0xFFFFD700),
-                              child: Text(
-                                _user!.profile?.name.substring(0, 1).toUpperCase() ?? 'U',
-                                style: const TextStyle(
-                                  fontSize: 48,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF000000),
+                        const SizedBox(height: 16),
+                        GoldButton(
+                          text: 'Retry',
+                          onPressed: _loadProfile,
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    color: LuxuryColors.primaryGold,
+                    onRefresh: _loadProfile,
+                    child: ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [
+                        // Profile Header
+                        Center(
+                          child: Column(
+                            children: [
+                              GoldAvatarFrame(
+                                imageUrl: _user!.profile?.displayPicture,
+                                initials: (_user!.profile?.name ?? 'U')
+                                    .split(' ')
+                                    .map((n) => n[0])
+                                    .take(2)
+                                    .join(),
+                                size: 120,
+                                borderWidth: 4,
+                                showGlow: true,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _user!.profile?.name ?? 'No name',
+                                style: LuxuryTextStyles.h1,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _user!.email,
+                                style: LuxuryTextStyles.bodyMedium.copyWith(
+                                  color: LuxuryColors.mutedText,
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _user!.profile?.name ?? 'No name',
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFFFD700),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _user!.email,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.white70,
-                              ),
-                            ),
                             if (_user!.profile?.bio != null && _user!.profile!.bio!.isNotEmpty) ...[
                               const SizedBox(height: 12),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF1A1A1A),
+                                  color: LuxuryColors.cardBackground,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   _user!.profile!.bio!,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.white70,
+                                  style: LuxuryTextStyles.bodyMedium.copyWith(
+                                    color: LuxuryColors.mutedText,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
@@ -176,15 +168,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                       // Quick Stats
                       if (_user!.profile != null) ...[
-                        const Text(
-                          'Quick Stats',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFFFD700),
-                          ),
+                        GoldSectionHeader(
+                          text: 'Quick Stats',
+                          icon: Icons.bar_chart,
+                          padding: const EdgeInsets.only(bottom: 16),
                         ),
-                        const SizedBox(height: 16),
                         Row(
                           children: [
                             Expanded(
@@ -220,41 +208,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
 
                       // Settings Section
-                      const Text(
-                        'Settings',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFFFD700),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildSettingsItem(
+                      GoldSectionHeader(
+                        text: 'Notifications & Privacy',
                         icon: Icons.notifications_outlined,
-                        title: 'Notifications',
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Coming soon!')),
-                          );
+                        padding: const EdgeInsets.only(bottom: 12),
+                      ),
+                      _buildToggleTile(
+                        icon: Icons.notifications_active_outlined,
+                        title: 'Push Notifications',
+                        subtitle: 'Remind me about chats and progress updates',
+                        value: _pushNotificationsEnabled,
+                        onChanged: (value) {
+                          setState(() => _pushNotificationsEnabled = value);
                         },
                       ),
-                      _buildSettingsItem(
+                      _buildToggleTile(
+                        icon: Icons.mail_outline,
+                        title: 'Email Updates',
+                        subtitle: 'Weekly recaps and new learning suggestions',
+                        value: _emailNotificationsEnabled,
+                        onChanged: (value) {
+                          setState(() => _emailNotificationsEnabled = value);
+                        },
+                      ),
+                      _buildToggleTile(
+                        icon: Icons.phone_android,
+                        title: 'In-app Alerts',
+                        subtitle: 'Show alerts when mentors reply',
+                        value: _inAppNotificationsEnabled,
+                        onChanged: (value) {
+                          setState(() => _inAppNotificationsEnabled = value);
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      GoldSectionHeader(
+                        text: 'Support & Security',
+                        icon: Icons.security,
+                        padding: const EdgeInsets.only(bottom: 12),
+                      ),
+                      _buildSupportTile(
                         icon: Icons.privacy_tip_outlined,
-                        title: 'Privacy',
+                        title: 'Privacy Controls',
+                        subtitle: 'Manage data sharing & visibility',
+                        actionLabel: 'Open',
                         onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Coming soon!')),
+                          _showInfoSheet(
+                            title: 'Privacy Controls',
+                            body:
+                                'Control which learning stats are visible to mentors and classmates. You can anonymize sensitive details any time.',
                           );
                         },
                       ),
-                      _buildSettingsItem(
+                      _buildSupportTile(
                         icon: Icons.help_outline,
                         title: 'Help & Support',
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Coming soon!')),
-                          );
-                        },
+                        subtitle: 'Chat with the Zaryah support team',
+                        actionLabel: 'Contact',
+                        onTap: _showHelpSupport,
                       ),
                       _buildSettingsItem(
                         icon: Icons.info_outline,
@@ -279,36 +289,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
+      ),
     );
   }
 
   Widget _buildStatCard(String label, String value, IconData icon) {
-    return Container(
+    return GoldCard(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.3)),
-      ),
+      margin: EdgeInsets.zero,
+      showGlow: true,
       child: Column(
         children: [
-          Icon(icon, color: const Color(0xFFFFD700), size: 28),
+          Icon(icon, color: LuxuryColors.primaryGold, size: 28),
           const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+            style: LuxuryTextStyles.h2.copyWith(
+              color: LuxuryColors.headingText,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.white70,
-            ),
+            style: LuxuryTextStyles.caption,
           ),
         ],
       ),
@@ -316,16 +319,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildInfoCard(String label, String value, IconData icon) {
-    return Container(
+    return GoldCard(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.3)),
-      ),
+      margin: EdgeInsets.zero,
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFFFFD700), size: 24),
+          Icon(icon, color: LuxuryColors.primaryGold, size: 24),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -333,18 +332,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.white70,
-                  ),
+                  style: LuxuryTextStyles.caption,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: LuxuryTextStyles.bodyLarge.copyWith(
                     fontWeight: FontWeight.w500,
-                    color: Colors.white,
                   ),
                 ),
               ],
@@ -361,30 +355,135 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
-    return Container(
+    return GoldCard(
       margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(12),
-      ),
+      padding: EdgeInsets.zero,
+      onTap: onTap,
       child: ListTile(
         leading: Icon(
           icon,
-          color: isDestructive ? Colors.red : const Color(0xFFFFD700),
+          color: isDestructive ? LuxuryColors.errorGold : LuxuryColors.primaryGold,
         ),
         title: Text(
           title,
-          style: TextStyle(
-            color: isDestructive ? Colors.red : Colors.white,
-            fontSize: 16,
+          style: LuxuryTextStyles.bodyLarge.copyWith(
+            color: isDestructive ? LuxuryColors.errorGold : LuxuryColors.headingText,
           ),
         ),
         trailing: Icon(
           Icons.chevron_right,
-          color: isDestructive ? Colors.red : Colors.white70,
+          color: isDestructive ? LuxuryColors.errorGold : LuxuryColors.mutedText,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToggleTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return GoldCard(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.zero,
+      child: SwitchListTile.adaptive(
+        value: value,
+        onChanged: onChanged,
+        activeColor: LuxuryColors.primaryGold,
+        secondary: Icon(icon, color: LuxuryColors.primaryGold),
+        title: Text(
+          title,
+          style: LuxuryTextStyles.bodyLarge.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: LuxuryTextStyles.bodyMedium.copyWith(
+            color: LuxuryColors.mutedText,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSupportTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String actionLabel,
+    required VoidCallback onTap,
+  }) {
+    return GoldCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.zero,
+      showGlow: true,
+      child: ListTile(
+        leading: Icon(icon, color: LuxuryColors.primaryGold),
+        title: Text(
+          title,
+          style: LuxuryTextStyles.bodyLarge.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: LuxuryTextStyles.bodyMedium.copyWith(
+            color: LuxuryColors.mutedText,
+            height: 1.3,
+          ),
+        ),
+        trailing: TextButton(
+          style: TextButton.styleFrom(
+            foregroundColor: LuxuryColors.primaryGold,
+          ),
+          onPressed: onTap,
+          child: Text(actionLabel),
         ),
         onTap: onTap,
       ),
+    );
+  }
+
+  void _showInfoSheet({required String title, required String body}) {
+    GoldBottomSheet.show(
+      context: context,
+      title: title,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              body,
+              style: LuxuryTextStyles.bodyLarge.copyWith(
+                color: LuxuryColors.mutedText,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: GoldButton(
+                text: 'Close',
+                onPressed: () => Navigator.pop(context),
+                isOutlined: true,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showHelpSupport() {
+    _showInfoSheet(
+      title: 'Help & Support',
+      body:
+          'Email us at support@zaryah.ai or chat with a mentor for real-time assistance. We typically respond within 24 hours.',
     );
   }
 }

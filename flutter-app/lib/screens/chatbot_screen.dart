@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
 import '../models/user_model.dart';
+import '../services/api_service.dart';
+import '../theme/neon_palette.dart';
+import '../utils/initials_helper.dart';
+import '../widgets/neon_background.dart';
+import '../widgets/simple_avatar.dart';
 import 'chat_screen.dart';
 import 'user_profile_detail_screen.dart';
 
@@ -102,7 +106,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             .toList();
       }
 
-      _addBotMessage(response['response'], users: mentionedUsers);
+      final responseText = response['response'] as String? ?? 'No response from server';
+      _addBotMessage(responseText, users: mentionedUsers);
     } catch (e) {
       _addBotMessage('Error: ${e.toString().replaceAll('Exception: ', '')}');
     } finally {
@@ -113,55 +118,67 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF000000),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF000000),
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        titleSpacing: 0,
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFFD700), Color(0xFFFFB700)],
-                ),
-                borderRadius: BorderRadius.circular(12),
+                shape: BoxShape.circle,
+                gradient: NeonColors.blueCyanGradient,
+                boxShadow: NeonShadows.glow(NeonColors.blue),
               ),
-              child: const Icon(Icons.smart_toy, color: Color(0xFF000000), size: 20),
+              child: const Icon(Icons.smart_toy, color: Colors.black, size: 20),
             ),
             const SizedBox(width: 12),
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+              children: const [
                 Text(
                   'Zaryah AI',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFFFD700),
+                    color: Colors.black,
                   ),
                 ),
                 Text(
-                  'Your Learning Assistant',
+                  'Encrypted Learning Network',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.white70,
+                    color: NeonColors.mutedText,
+                    letterSpacing: 1.1,
                   ),
                 ),
               ],
             ),
           ],
         ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: NeonColors.accentGradient,
+              boxShadow: NeonShadows.glow(NeonColors.cyan),
+            ),
+          ),
+        ),
       ),
-      body: Column(
-        children: [
+      body: NeonBackground(
+        child: Column(
+          children: [
           // Messages list
           Expanded(
             child: _messages.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
                       'No messages yet',
-                      style: TextStyle(color: Colors.white54),
+                      style: const TextStyle(color: NeonColors.mutedText),
                     ),
                   )
                 : ListView.builder(
@@ -208,15 +225,16 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                     height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Color(0xFFFFD700),
+                      color: NeonColors.cyan,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Text(
                     'AI is thinking...',
-                    style: TextStyle(
-                      color: Colors.grey[400],
+                    style: const TextStyle(
+                      color: NeonColors.mutedText,
                       fontStyle: FontStyle.italic,
+                      letterSpacing: 1,
                     ),
                   ),
                 ],
@@ -226,19 +244,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           // Input area
           Container(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF000000),
-                  Color(0xFF1A1A1A),
-                ],
-              ),
+              color: NeonColors.background.withOpacity(0.9),
+              border: Border(top: BorderSide(color: NeonColors.cyan.withOpacity(0.2))),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFFFD700).withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
+                  color: NeonColors.purple.withOpacity(0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, -8),
                 ),
               ],
             ),
@@ -249,22 +261,27 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1A1A1A),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: const Color(0xFFFFD700).withOpacity(0.3),
-                        ),
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(color: NeonColors.cyan.withOpacity(0.35)),
+                        color: Colors.white.withOpacity(0.04),
+                        boxShadow: [
+                          BoxShadow(
+                            color: NeonColors.blue.withOpacity(0.15),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
                       ),
                       child: TextField(
                         controller: _messageController,
-                        style: const TextStyle(color: Colors.white),
+                        style: const TextStyle(color: NeonColors.text),
                         decoration: const InputDecoration(
                           hintText: 'Ask about users, skills, learning...',
-                          hintStyle: TextStyle(color: Colors.white54),
+                          hintStyle: TextStyle(color: NeonColors.mutedText),
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(
                             horizontal: 20,
-                            vertical: 12,
+                            vertical: 14,
                           ),
                         ),
                         maxLines: null,
@@ -276,20 +293,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   const SizedBox(width: 12),
                   Container(
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFFD700), Color(0xFFFFB700)],
-                      ),
+                      gradient: NeonColors.accentGradient,
                       shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFFD700).withOpacity(0.4),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      boxShadow: NeonShadows.glow(NeonColors.cyan),
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.send, color: Color(0xFF000000)),
+                      icon: const Icon(Icons.send, color: Colors.black),
                       onPressed: _isLoading ? null : _sendMessage,
                     ),
                   ),
@@ -299,7 +308,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }
 
@@ -316,6 +326,15 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bubbleGradient = message.isUser
+        ? NeonColors.blueCyanGradient
+        : const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0x3320303C), Color(0x6610151F)],
+          );
+    final bubbleShadowColor = message.isUser ? NeonColors.cyan : NeonColors.purple;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -330,14 +349,13 @@ class _MessageBubble extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFD700), Color(0xFFFFB700)],
-                    ),
+                    gradient: NeonColors.accentGradient,
                     borderRadius: BorderRadius.circular(12),
+                    boxShadow: NeonShadows.glow(NeonColors.purple),
                   ),
                   child: const Icon(
                     Icons.smart_toy,
-                    color: Color(0xFF000000),
+                    color: Colors.black,
                     size: 20,
                   ),
                 ),
@@ -347,20 +365,20 @@ class _MessageBubble extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    gradient: message.isUser
-                        ? const LinearGradient(
-                            colors: [Color(0xFFFFD700), Color(0xFFFFB700)],
-                          )
-                        : const LinearGradient(
-                            colors: [
-                              Color(0xFF1A1A1A),
-                              Color(0xFF0D0D0D),
-                            ],
-                          ),
-                    borderRadius: BorderRadius.circular(16),
-                    border: message.isUser
-                        ? null
-                        : Border.all(color: const Color(0xFFFFD700).withOpacity(0.2)),
+                    gradient: bubbleGradient,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: message.isUser
+                          ? Colors.transparent
+                          : NeonColors.purple.withOpacity(0.4),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: bubbleShadowColor.withOpacity(0.25),
+                        blurRadius: 25,
+                        offset: const Offset(0, 12),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -368,7 +386,7 @@ class _MessageBubble extends StatelessWidget {
                       Text(
                         message.text,
                         style: TextStyle(
-                          color: message.isUser ? Colors.black : Colors.white,
+                          color: message.isUser ? Colors.black : NeonColors.text,
                           fontSize: 15,
                           height: 1.4,
                         ),
@@ -379,7 +397,7 @@ class _MessageBubble extends StatelessWidget {
                         style: TextStyle(
                           color: message.isUser
                               ? Colors.black.withOpacity(0.6)
-                              : Colors.white54,
+                              : NeonColors.mutedText,
                           fontSize: 11,
                         ),
                       ),
@@ -392,11 +410,11 @@ class _MessageBubble extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1A1A1A),
+                    color: Colors.white.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.3)),
+                    border: Border.all(color: NeonColors.cyan.withOpacity(0.3)),
                   ),
-                  child: const Icon(Icons.person, color: Color(0xFFFFD700), size: 20),
+                  child: const Icon(Icons.person, color: NeonColors.cyan, size: 20),
                 ),
               ],
             ],
@@ -414,14 +432,15 @@ class _MessageBubble extends StatelessWidget {
                     padding: EdgeInsets.only(bottom: 8),
                     child: Row(
                       children: [
-                        Icon(Icons.person_pin, color: Color(0xFFFFD700), size: 16),
+                        Icon(Icons.person_pin, color: NeonColors.cyan, size: 16),
                         SizedBox(width: 6),
                         Text(
                           'Mentioned Users',
                           style: TextStyle(
-                            color: Color(0xFFFFD700),
+                            color: NeonColors.text,
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
                           ),
                         ),
                       ],
@@ -447,15 +466,15 @@ class _MessageBubble extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1A1A), Color(0xFF0D0D0D)],
+          colors: [Color(0x2210151F), Color(0x110B0F16)],
         ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: NeonColors.blue.withOpacity(0.4)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFFD700).withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: NeonColors.blue.withOpacity(0.2),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -467,17 +486,18 @@ class _MessageBubble extends StatelessWidget {
             Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFFFD700), width: 2),
+                gradient: NeonColors.blueCyanGradient,
+                boxShadow: NeonShadows.glow(NeonColors.blue),
               ),
-              child: CircleAvatar(
-                radius: 24,
-                backgroundColor: const Color(0xFFFFD700),
+              child: SimpleAvatar(
+                size: 48,
+                backgroundColor: NeonColors.background,
                 child: Text(
-                  profile.name.substring(0, 1).toUpperCase(),
+                  initialsFromName(profile.name),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF000000),
+                    color: NeonColors.text,
                   ),
                 ),
               ),
@@ -494,20 +514,20 @@ class _MessageBubble extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: NeonColors.text,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      const Icon(Icons.work_outline, size: 12, color: Color(0xFFFFD700)),
+                      const Icon(Icons.work_outline, size: 12, color: NeonColors.cyan),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           profile.occupation,
                           style: const TextStyle(
                             fontSize: 12,
-                            color: Colors.white70,
+                            color: NeonColors.mutedText,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -518,14 +538,14 @@ class _MessageBubble extends StatelessWidget {
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      const Icon(Icons.school_outlined, size: 12, color: Color(0xFFFFD700)),
+                      const Icon(Icons.school_outlined, size: 12, color: NeonColors.purple),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           profile.educationLevel,
                           style: const TextStyle(
                             fontSize: 12,
-                            color: Colors.white70,
+                            color: NeonColors.mutedText,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -542,10 +562,9 @@ class _MessageBubble extends StatelessWidget {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFD700), Color(0xFFFFB700)],
-                    ),
+                    gradient: NeonColors.accentGradient,
                     borderRadius: BorderRadius.circular(10),
+                    boxShadow: NeonShadows.glow(NeonColors.cyan),
                   ),
                   child: Material(
                     color: Colors.transparent,
@@ -557,12 +576,12 @@ class _MessageBubble extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.person, color: Color(0xFF000000), size: 14),
+                            Icon(Icons.person, color: Colors.black, size: 14),
                             SizedBox(width: 4),
                             Text(
                               'Profile',
                               style: TextStyle(
-                                color: Color(0xFF000000),
+                                color: Colors.black,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -576,8 +595,9 @@ class _MessageBubble extends StatelessWidget {
                 const SizedBox(height: 6),
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2196F3),
+                    gradient: NeonColors.blueCyanGradient,
                     borderRadius: BorderRadius.circular(10),
+                    boxShadow: NeonShadows.glow(NeonColors.blue),
                   ),
                   child: Material(
                     color: Colors.transparent,
@@ -589,12 +609,12 @@ class _MessageBubble extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.message, color: Colors.white, size: 14),
+                            Icon(Icons.message, color: Colors.black, size: 14),
                             SizedBox(width: 4),
                             Text(
                               'Message',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Colors.black,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),

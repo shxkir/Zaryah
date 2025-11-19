@@ -8,14 +8,17 @@ datasource db {
 }
 
 model User {
-  id                                  String    @id @default(uuid())
-  email                               String    @unique
-  password                            String
-  createdAt                           DateTime  @default(now())
-  updatedAt                           DateTime  @updatedAt
-  messages_messages_receiverIdTousers Message[] @relation("messages_receiverIdTousers")
-  messages_messages_senderIdTousers   Message[] @relation("messages_senderIdTousers")
-  profile                             Profile?
+  id              String           @id @default(uuid())
+  email           String           @unique
+  password        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  sentMessages    Message[]        @relation("SentMessages")
+  receivedMessages Message[]       @relation("ReceivedMessages")
+  profile         Profile?
+  posts           Post[]
+  housingListings HousingListing[]
+  financeWatchlist FinanceWatchlist[]
 
   @@map("users")
 }
@@ -41,23 +44,116 @@ model Profile {
   updatedAt             DateTime @updatedAt
   bio                   String?
   profilePicture        String?
+  profilePictureUrl     String?  // Uploaded image URL from storage
+  latitude              Float?
+  longitude             Float?
+  city                  String?
+  state                 String?  // State/province/region
+  country               String?
+  locationPrivacy       String   @default("everyone") // "everyone", "connections", "private"
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connections           Connection[] @relation("UserConnections")
+  connectedTo           Connection[] @relation("ConnectedUser")
 
+  @@index([city])
+  @@index([country])
   @@map("profiles")
 }
 
+model Connection {
+  id           String   @id @default(uuid())
+  userId       String
+  connectedId  String
+  status       String   @default("pending") // "pending", "accepted", "rejected"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         Profile  @relation("UserConnections", fields: [userId], references: [id], onDelete: Cascade)
+  connected    Profile  @relation("ConnectedUser", fields: [connectedId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, connectedId])
+  @@index([userId])
+  @@index([connectedId])
+  @@index([status])
+  @@map("connections")
+}
+
 model Message {
-  id                               String   @id @default(uuid())
-  text                             String
-  senderId                         String
-  receiverId                       String
-  read                             Boolean  @default(false)
-  createdAt                        DateTime @default(now())
-  users_messages_receiverIdTousers User     @relation("messages_receiverIdTousers", fields: [receiverId], references: [id], onDelete: Cascade)
-  users_messages_senderIdTousers   User     @relation("messages_senderIdTousers", fields: [senderId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  text       String
+  senderId   String
+  receiverId String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
   @@index([receiverId])
   @@index([senderId])
   @@map("messages")
+}
+
+model Post {
+  id          String   @id @default(uuid())
+  userId      String
+  caption     String?
+  imageUrl    String
+  latitude    Float?
+  longitude   Float?
+  city        String?
+  country     String?
+  privacy     String   @default("everyone") // "everyone", "connections", "private"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([country])
+  @@map("posts")
+}
+
+model HousingListing {
+  id              String   @id @default(uuid())
+  userId          String
+  title           String
+  monthlyPrice    Float
+  locality        String
+  fullAddress     String
+  latitude        Float
+  longitude       Float
+  images          String[] // Array of base64 or URLs
+  contactInfo     String
+  bedrooms        Int?
+  bathrooms       Int?
+  squareFeet      Int?
+  propertyType    String   @default("apartment") // apartment, house, villa, etc.
+  amenities       String[] // parking, gym, pool, etc.
+  description     String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([locality])
+  @@index([monthlyPrice])
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("housing_listings")
+}
+
+model FinanceWatchlist {
+  id          String   @id @default(uuid())
+  userId      String
+  symbol      String   // Stock/currency symbol (e.g., RELIANCE, USDINR, GOLD)
+  assetType   String   // equity, currency, commodity
+  exchange    String?  // NSE, BSE, MCX, etc.
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, symbol])
+  @@index([userId])
+  @@index([assetType])
+  @@map("finance_watchlist")
 }
