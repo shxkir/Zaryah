@@ -30,6 +30,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "hasown": "^2.0.2",
     "jsonwebtoken": "^9.0.2",
     "openai": "^6.9.0",
     "yahoo-finance2": "^3.10.2"

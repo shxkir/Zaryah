@@ -1,5 +1,8 @@
 // Yahoo Finance Helper for Indian Stocks (Free API)
-const yahooFinance = require('yahoo-finance2').default;
+const YahooFinanceClass = require('yahoo-finance2').default;
+const yahooFinance = new YahooFinanceClass({
+  suppressNotices: ['yahooSurvey']
+});
 
 /**
  * Get Indian stock quote from Yahoo Finance

@@ -23,14 +23,14 @@ class ApiService {
 
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return 'http://10.0.2.2:3000/api';
+        return 'http://192.168.1.15:3000/api';
       case TargetPlatform.iOS:
       case TargetPlatform.macOS:
-        return 'http://127.0.0.1:3000/api';
+        return 'http://192.168.1.15:3000/api';
       case TargetPlatform.windows:
       case TargetPlatform.linux:
       case TargetPlatform.fuchsia:
-        return 'http://localhost:3000/api';
+        return 'http://192.168.1.15:3000/api';
     }
 
     return 'http://localhost:3000/api';

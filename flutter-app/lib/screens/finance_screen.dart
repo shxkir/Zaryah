@@ -3,6 +3,10 @@ import '../models/finance_models.dart';
 import '../services/finance_service.dart';
 import '../theme/luxury_theme.dart';
 import '../widgets/luxury_components.dart';
+import '../widgets/animated_loading.dart';
+import '../widgets/animated_card.dart';
+import '../utils/smooth_page_route.dart';
+import 'stock_detail_screen.dart';
 
 class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key});
@@ -37,18 +41,49 @@ class _FinanceScreenState extends State<FinanceScreen> with SingleTickerProvider
       _errorMessage = null;
     });
     try {
-      // Use getFinanceDashboard instead of getMarketOverview
+      // Get dashboard data and watchlist
       final dashboardData = await FinanceService.getFinanceDashboard();
       final watchlist = await FinanceService.getWatchlist();
 
-      // Convert dashboard data to MarketOverview if needed
+      // Convert dashboard data to MarketOverview
+      MarketOverview? overview;
       if (dashboardData != null) {
-        // For now, use the dashboard data directly or create MarketOverview from it
         print('📊 Dashboard data loaded: ${dashboardData.keys}');
+
+        // Parse indices
+        final indices = (dashboardData['indices'] as List?)
+            ?.map((e) => MarketIndex.fromJson(e as Map<String, dynamic>))
+            .toList() ?? [];
+
+        // Parse currencies
+        final currencies = (dashboardData['currencies'] as List?)
+            ?.map((e) => CurrencyRate.fromJson(e as Map<String, dynamic>))
+            .toList() ?? [];
+
+        // Parse commodities
+        final commodities = (dashboardData['commodities'] as List?)
+            ?.map((e) => CommodityPrice.fromJson(e as Map<String, dynamic>))
+            .toList() ?? [];
+
+        // Parse popular stocks (use them as topGainers for now)
+        final popularStocks = (dashboardData['popularStocks'] as List?)
+            ?.map((e) => StockQuote.fromJson(e as Map<String, dynamic>))
+            .toList() ?? [];
+
+        overview = MarketOverview(
+          indices: indices,
+          currencies: currencies,
+          commodities: commodities,
+          topGainers: popularStocks, // Use popular stocks as gainers
+          topLosers: [], // Empty for now
+          timestamp: dashboardData['timestamp'] as String? ?? DateTime.now().toIso8601String(),
+        );
+
+        print('✅ Market overview created with ${indices.length} indices, ${popularStocks.length} stocks');
       }
 
       setState(() {
-        // _marketOverview = overview; // Remove this for now
+        _marketOverview = overview;
         _watchlist = watchlist;
         _isLoading = false;
       });
@@ -169,9 +204,13 @@ class _FinanceScreenState extends State<FinanceScreen> with SingleTickerProvider
           ),
           const SizedBox(height: 12),
           Row(
-            children: _marketOverview!.indices.take(3).map((index) {
+            children: _marketOverview!.indices.take(3).toList().asMap().entries.map((entry) {
               return Expanded(
-                child: _buildIndexCard(index),
+                child: AnimatedListItem(
+                  index: entry.key,
+                  delay: const Duration(milliseconds: 100),
+                  child: _buildIndexCard(entry.value),
+                ),
               );
             }).toList(),
           ),
@@ -182,20 +221,22 @@ class _FinanceScreenState extends State<FinanceScreen> with SingleTickerProvider
 
   Widget _buildIndexCard(MarketIndex index) {
     final isPositive = index.isPositive;
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: LuxuryColors.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isPositive
-              ? Colors.green.withOpacity(0.3)
-              : Colors.red.withOpacity(0.3),
-          width: 1.5,
+    return GestureDetector(
+      onTap: () => _showStockDetails(index.symbol, name: index.name),
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: LuxuryColors.cardBackground,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isPositive
+                ? Colors.green.withOpacity(0.3)
+                : Colors.red.withOpacity(0.3),
+            width: 1.5,
+          ),
         ),
-      ),
-      child: Column(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -241,6 +282,7 @@ class _FinanceScreenState extends State<FinanceScreen> with SingleTickerProvider
             ],
           ),
         ],
+        ),
       ),
     );
   }
@@ -285,16 +327,18 @@ class _FinanceScreenState extends State<FinanceScreen> with SingleTickerProvider
 
   Widget _buildWatchlistCard(WatchlistItem item) {
     final isPositive = item.isPositive ?? true;
-    return Container(
-      width: 140,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: LuxuryColors.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: LuxuryColors.primaryGold.withOpacity(0.3)),
-      ),
-      child: Column(
+    return GestureDetector(
+      onTap: () => _showStockDetails(item.symbol),
+      child: Container(
+        width: 140,
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: LuxuryColors.cardBackground,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: LuxuryColors.primaryGold.withOpacity(0.3)),
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -325,6 +369,7 @@ class _FinanceScreenState extends State<FinanceScreen> with SingleTickerProvider
               ),
             ),
         ],
+        ),
       ),
     );
   }
@@ -353,7 +398,12 @@ class _FinanceScreenState extends State<FinanceScreen> with SingleTickerProvider
               ],
             ),
             const SizedBox(height: 12),
-            ..._marketOverview!.topGainers.take(3).map((stock) => _buildStockCard(stock)),
+            ..._marketOverview!.topGainers.take(3).toList().asMap().entries.map((entry) =>
+              AnimatedListItem(
+                index: entry.key,
+                child: _buildStockCard(entry.value),
+              )
+            ),
             const SizedBox(height: 24),
           ],
 
@@ -379,9 +429,11 @@ class _FinanceScreenState extends State<FinanceScreen> with SingleTickerProvider
           ],
 
           // Loading or Error State
-          if (_isLoading)
-            const Center(child: CircularProgressIndicator(color: LuxuryColors.primaryGold))
-          else if (_marketOverview == null)
+          if (_isLoading) ...[
+            const CardSkeleton(),
+            const CardSkeleton(),
+            const CardSkeleton(),
+          ] else if (_marketOverview == null)
             const Center(
               child: Padding(
                 padding: EdgeInsets.all(32.0),
@@ -403,37 +455,38 @@ class _FinanceScreenState extends State<FinanceScreen> with SingleTickerProvider
             ),
           ),
           const SizedBox(height: 12),
-          ...FinanceService.getPopularStocks().map((stock) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                color: LuxuryColors.cardBackground,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: LuxuryColors.primaryGold.withOpacity(0.2)),
-              ),
-              child: ListTile(
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: LuxuryColors.primaryGold.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
+          ...FinanceService.getPopularStocks().asMap().entries.map((entry) {
+            final stock = entry.value;
+            final index = entry.key;
+            return AnimatedListItem(
+              index: index,
+              child: AnimatedCard(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: EdgeInsets.zero,
+                onTap: () => _showStockDetails(stock['symbol']!, name: stock['name']),
+                child: ListTile(
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: LuxuryColors.primaryGold.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.trending_up, color: LuxuryColors.primaryGold, size: 20),
                   ),
-                  child: const Icon(Icons.trending_up, color: LuxuryColors.primaryGold, size: 20),
-                ),
-                title: Text(
-                  stock['name']!,
-                  style: const TextStyle(
-                    color: LuxuryColors.bodyText,
-                    fontWeight: FontWeight.w600,
+                  title: Text(
+                    stock['name']!,
+                    style: const TextStyle(
+                      color: LuxuryColors.bodyText,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
+                  subtitle: Text(
+                    stock['symbol']!,
+                    style: const TextStyle(color: LuxuryColors.mutedText, fontSize: 12),
+                  ),
+                  trailing: const Icon(Icons.chevron_right, color: LuxuryColors.mutedText),
                 ),
-                subtitle: Text(
-                  stock['symbol']!,
-                  style: const TextStyle(color: LuxuryColors.mutedText, fontSize: 12),
-                ),
-                trailing: const Icon(Icons.chevron_right, color: LuxuryColors.mutedText),
-                onTap: () => _showStockDetails(stock['symbol']!),
               ),
             );
           }),
@@ -443,14 +496,9 @@ class _FinanceScreenState extends State<FinanceScreen> with SingleTickerProvider
   }
 
   Widget _buildStockCard(StockQuote stock) {
-    return Container(
+    return AnimatedCard(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: LuxuryColors.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: LuxuryColors.primaryGold.withOpacity(0.2)),
-      ),
+      onTap: () => _showStockDetails(stock.symbol),
       child: Row(
         children: [
           Expanded(
@@ -856,8 +904,13 @@ class _FinanceScreenState extends State<FinanceScreen> with SingleTickerProvider
     );
   }
 
-  Future<void> _showStockDetails(String symbol) async {
-    // Navigate to detailed stock view or show dialog
-    // Implement as needed
+  Future<void> _showStockDetails(String symbol, {String? name}) async {
+    // Navigate to stock detail screen with smooth transition
+    await context.smoothPush(
+      StockDetailScreen(
+        symbol: symbol,
+        name: name,
+      ),
+    );
   }
 }

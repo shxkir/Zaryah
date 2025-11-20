@@ -55,7 +55,8 @@ const initPineconeWithTimeout = async () => {
 };
 
 // Start initialization in background (non-blocking)
-initPineconeWithTimeout();
+// TEMPORARILY DISABLED to get server running
+// initPineconeWithTimeout();
 
 // Middleware
 app.use(cors());
@@ -647,23 +648,62 @@ app.post('/api/chatbot', authenticateToken, async (req, res) => {
             required: ["userName", "message"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "search_housing",
+          description: "Search for available housing listings by location and/or price range. Use this when users ask about houses, apartments, properties, or rentals in specific areas or price ranges.",
+          parameters: {
+            type: "object",
+            properties: {
+              locality: {
+                type: "string",
+                description: "Name of the locality/area to search in (e.g., 'T. Nagar', 'Adyar', 'Anna Nagar')"
+              },
+              minPrice: {
+                type: "number",
+                description: "Minimum monthly rent in rupees"
+              },
+              maxPrice: {
+                type: "number",
+                description: "Maximum monthly rent in rupees"
+              },
+              bedrooms: {
+                type: "number",
+                description: "Number of bedrooms (e.g., 1, 2, 3)"
+              }
+            }
+          }
+        }
       }
     ];
 
     // Create system prompt with RELEVANT user data context
-    const systemPrompt = `You are Zaryah AI, an intelligent educational assistant for the Zaryah platform. You help users discover and connect with other learners.
+    const systemPrompt = `You are Zaryah AI, an intelligent assistant for the Zaryah platform. You help users discover and connect with other learners, and also help them find housing.
 
 PLATFORM STATISTICS:
 - Total users on platform: ${totalUserCount}
 - Most relevant users for this query: ${relevantUsers.length}
 
 IMPORTANT INSTRUCTIONS:
+
+**For User Search:**
 - When asked "who is a developer" or "who is developing", look for users with occupations like "Software Developer", "Backend Developer", "Frontend Developer", "Game Developer", "Junior Developer", "Blockchain Developer"
 - When asked "who is studying", look for users with occupation "Student"
 - When asked "who is learning X", look for users with X in their subjects or learning goals
 - ALWAYS mention user names explicitly in your response
 - Provide specific information about each relevant user
 - Include occupation, education level, subjects, and learning goals
+
+**For Housing Search:**
+- When asked about houses, apartments, properties, or rentals, use the search_housing tool
+- Support queries like: "houses in T. Nagar", "apartments under ₹20,000", "2 BHK in Adyar"
+- Extract location names (localities) and price ranges from user queries
+- For price ranges: "under X" means maxPrice=X, "above X" means minPrice=X, "between X and Y" means minPrice=X and maxPrice=Y
+- Common localities: T. Nagar, Adyar, Anna Nagar, Velachery, Thiruvanmiyur, Mylapore, Nungambakkam, Guindy, Porur, Tambaram
+
+**General:**
 - Format responses clearly with bullet points
 - Be conversational and helpful
 
@@ -786,6 +826,75 @@ ${JSON.stringify(relevantUsers, null, 2)}`;
           } else {
             response = `Could not find user: ${functionArgs.userName}`;
           }
+        } else if (functionName === "search_housing") {
+          // Search for housing listings based on criteria
+          const whereClause = {
+            isActive: true,
+            AND: []
+          };
+
+          if (functionArgs.locality) {
+            whereClause.AND.push({
+              locality: {
+                contains: functionArgs.locality,
+                mode: 'insensitive'
+              }
+            });
+          }
+
+          if (functionArgs.minPrice !== undefined || functionArgs.maxPrice !== undefined) {
+            const priceFilter = {};
+            if (functionArgs.minPrice !== undefined) priceFilter.gte = functionArgs.minPrice;
+            if (functionArgs.maxPrice !== undefined) priceFilter.lte = functionArgs.maxPrice;
+            whereClause.AND.push({ monthlyPrice: priceFilter });
+          }
+
+          if (functionArgs.bedrooms) {
+            whereClause.AND.push({ bedrooms: functionArgs.bedrooms });
+          }
+
+          // Remove AND if empty
+          if (whereClause.AND.length === 0) {
+            delete whereClause.AND;
+          }
+
+          const listings = await prisma.housingListing.findMany({
+            where: whereClause,
+            include: {
+              user: {
+                include: { profile: true }
+              }
+            },
+            take: 20,
+            orderBy: { createdAt: 'desc' }
+          });
+
+          if (listings.length > 0) {
+            response = {
+              type: 'housing_results',
+              message: `Found ${listings.length} housing listing${listings.length > 1 ? 's' : ''} matching your criteria.`,
+              listings: listings.map(listing => ({
+                id: listing.id,
+                title: listing.title,
+                monthlyPrice: listing.monthlyPrice,
+                locality: listing.locality,
+                fullAddress: listing.fullAddress,
+                bedrooms: listing.bedrooms,
+                bathrooms: listing.bathrooms,
+                squareFeet: listing.squareFeet,
+                propertyType: listing.propertyType,
+                amenities: listing.amenities,
+                description: listing.description,
+                contactInfo: listing.contactInfo,
+                latitude: listing.latitude,
+                longitude: listing.longitude,
+                ownerName: listing.user?.profile?.name || 'Unknown',
+                ownerProfilePicture: listing.user?.profile?.profilePictureUrl
+              }))
+            };
+          } else {
+            response = `No housing listings found matching your criteria. Try adjusting your search parameters.`;
+          }
         }
       } else {
         // Use the direct response from OpenAI
@@ -818,47 +927,59 @@ ${JSON.stringify(relevantUsers, null, 2)}`;
     }
 
     // Extract user names mentioned in the response to send back as cards
-    // Search through ALL users, not just relevantUsers
+    // Only do this for string responses (not housing_results objects)
     const mentionedUsers = [];
-    allUsers.forEach(user => {
-      if (user.profile && user.profile.name) {
-        const nameLower = user.profile.name.toLowerCase();
-        const responseLower = response.toLowerCase();
-        // Check if user's name is mentioned in the response
-        if (responseLower.includes(nameLower)) {
-          mentionedUsers.push({
-            id: user.id || '',
-            email: user.email || '',
-            profile: {
-              name: user.profile.name || '',
-              age: user.profile.age || 0,
-              educationLevel: user.profile.educationLevel || '',
-              occupation: user.profile.occupation || '',
-              learningGoals: user.profile.learningGoals || '',
-              subjects: user.profile.subjects || [],
-              learningStyle: user.profile.learningStyle || '',
-              previousExperience: user.profile.previousExperience || '',
-              strengths: user.profile.strengths || '',
-              weaknesses: user.profile.weaknesses || '',
-              specificChallenges: user.profile.specificChallenges || '',
-              availableHoursPerWeek: user.profile.availableHoursPerWeek || 0,
-              learningPace: user.profile.learningPace || '',
-              motivationLevel: user.profile.motivationLevel || '',
-              bio: user.profile.bio || '',
-              profilePicture: user.profile.profilePicture || '',
-            }
-          });
+    if (typeof response === 'string') {
+      allUsers.forEach(user => {
+        if (user.profile && user.profile.name) {
+          const nameLower = user.profile.name.toLowerCase();
+          const responseLower = response.toLowerCase();
+          // Check if user's name is mentioned in the response
+          if (responseLower.includes(nameLower)) {
+            mentionedUsers.push({
+              id: user.id || '',
+              email: user.email || '',
+              profile: {
+                name: user.profile.name || '',
+                age: user.profile.age || 0,
+                educationLevel: user.profile.educationLevel || '',
+                occupation: user.profile.occupation || '',
+                learningGoals: user.profile.learningGoals || '',
+                subjects: user.profile.subjects || [],
+                learningStyle: user.profile.learningStyle || '',
+                previousExperience: user.profile.previousExperience || '',
+                strengths: user.profile.strengths || '',
+                weaknesses: user.profile.weaknesses || '',
+                specificChallenges: user.profile.specificChallenges || '',
+                availableHoursPerWeek: user.profile.availableHoursPerWeek || 0,
+                learningPace: user.profile.learningPace || '',
+                motivationLevel: user.profile.motivationLevel || '',
+                bio: user.profile.bio || '',
+                profilePicture: user.profile.profilePicture || '',
+              }
+            });
+          }
         }
-      }
-    });
+      });
+    }
 
-    res.json({
-      query,
-      response,
-      mentionedUsers, // Include users mentioned in response
-      timestamp: new Date().toISOString(),
-      dataSource: pineconeReady ? 'pinecone' : 'postgresql',
-    });
+    // If response is a housing_results object, spread it at top level
+    if (typeof response === 'object' && response.type === 'housing_results') {
+      res.json({
+        query,
+        ...response, // Spread the housing_results object (type, message, listings)
+        timestamp: new Date().toISOString(),
+        dataSource: pineconeReady ? 'pinecone' : 'postgresql',
+      });
+    } else {
+      res.json({
+        query,
+        response,
+        mentionedUsers, // Include users mentioned in response
+        timestamp: new Date().toISOString(),
+        dataSource: pineconeReady ? 'pinecone' : 'postgresql',
+      });
+    }
   } catch (error) {
     console.error('Chatbot error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
@@ -1032,6 +1153,7 @@ app.get('/api/messages/:partnerId', authenticateToken, async (req, res) => {
 app.get('/api/profile/me', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
+    console.log(`👤 Profile request for userId: ${userId}`);
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -1039,8 +1161,11 @@ app.get('/api/profile/me', authenticateToken, async (req, res) => {
     });
 
     if (!user) {
+      console.error(`❌ User not found for userId: ${userId}`);
       return res.status(404).json({ error: 'User not found' });
     }
+
+    console.log(`✅ Found user: ${user.email}, has profile: ${!!user.profile}`);
 
     // Remove password from response
     const { password, ...userWithoutPassword } = user;

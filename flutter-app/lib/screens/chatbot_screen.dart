@@ -13,12 +13,14 @@ class Message {
   final bool isUser;
   final DateTime timestamp;
   final List<UserModel>? mentionedUsers;
+  final List<Map<String, dynamic>>? housingListings;
 
   Message({
     required this.text,
     required this.isUser,
     required this.timestamp,
     this.mentionedUsers,
+    this.housingListings,
   });
 }
 
@@ -51,13 +53,14 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     super.dispose();
   }
 
-  void _addBotMessage(String text, {List<UserModel>? users}) {
+  void _addBotMessage(String text, {List<UserModel>? users, List<Map<String, dynamic>>? housingListings}) {
     setState(() {
       _messages.add(Message(
         text: text,
         isUser: false,
         timestamp: DateTime.now(),
         mentionedUsers: users,
+        housingListings: housingListings,
       ));
     });
     _scrollToBottom();
@@ -98,16 +101,25 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     try {
       final response = await _apiService.sendChatMessage(message);
 
-      // Parse mentioned users if any
-      List<UserModel>? mentionedUsers;
-      if (response['mentionedUsers'] != null && (response['mentionedUsers'] as List).isNotEmpty) {
-        mentionedUsers = (response['mentionedUsers'] as List)
-            .map((user) => UserModel.fromJson(user))
+      // Check if this is a housing_results response
+      if (response['type'] == 'housing_results' && response['listings'] != null) {
+        final listings = (response['listings'] as List)
+            .map((listing) => listing as Map<String, dynamic>)
             .toList();
-      }
+        final responseText = response['message'] as String? ?? 'Found housing listings';
+        _addBotMessage(responseText, housingListings: listings);
+      } else {
+        // Parse mentioned users if any
+        List<UserModel>? mentionedUsers;
+        if (response['mentionedUsers'] != null && (response['mentionedUsers'] as List).isNotEmpty) {
+          mentionedUsers = (response['mentionedUsers'] as List)
+              .map((user) => UserModel.fromJson(user))
+              .toList();
+        }
 
-      final responseText = response['response'] as String? ?? 'No response from server';
-      _addBotMessage(responseText, users: mentionedUsers);
+        final responseText = response['response'] as String? ?? 'No response from server';
+        _addBotMessage(responseText, users: mentionedUsers);
+      }
     } catch (e) {
       _addBotMessage('Error: ${e.toString().replaceAll('Exception: ', '')}');
     } finally {
@@ -317,11 +329,13 @@ class _MessageBubble extends StatelessWidget {
   final Message message;
   final Function(UserModel) onUserCardTap;
   final Function(UserModel) onMessageTap;
+  final Function(Map<String, dynamic>)? onHousingTap;
 
   const _MessageBubble({
     required this.message,
     required this.onUserCardTap,
     required this.onMessageTap,
+    this.onHousingTap,
   });
 
   @override
@@ -447,6 +461,38 @@ class _MessageBubble extends StatelessWidget {
                     ),
                   ),
                   ...message.mentionedUsers!.map((user) => _buildUserCard(user)),
+                ],
+              ),
+            ),
+          ],
+
+          // Housing listings if available
+          if (!message.isUser && message.housingListings != null && message.housingListings!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(left: 36),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.home, color: NeonColors.cyan, size: 16),
+                        SizedBox(width: 6),
+                        Text(
+                          'Available Properties',
+                          style: TextStyle(
+                            color: NeonColors.text,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ...message.housingListings!.map((listing) => _buildHousingCard(listing, context)),
                 ],
               ),
             ),
@@ -626,6 +672,153 @@ class _MessageBubble extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHousingCard(Map<String, dynamic> listing, BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x2210151F), Color(0x110B0F16)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: NeonColors.cyan.withOpacity(0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: NeonColors.cyan.withOpacity(0.2),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title and Price
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    listing['title'] ?? 'Property',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: NeonColors.text,
+                    ),
+                  ),
+                ),
+                Text(
+                  '₹${listing['monthlyPrice']?.toString() ?? '0'}/mo',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: NeonColors.cyan,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Location
+            Row(
+              children: [
+                const Icon(Icons.location_on, size: 14, color: NeonColors.purple),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    listing['locality'] ?? 'Unknown location',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: NeonColors.mutedText,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+
+            // Property details
+            Row(
+              children: [
+                const Icon(Icons.bed, size: 14, color: NeonColors.cyan),
+                const SizedBox(width: 4),
+                Text(
+                  '${listing['bedrooms'] ?? 0} BHK',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: NeonColors.text,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Icon(Icons.bathtub, size: 14, color: NeonColors.cyan),
+                const SizedBox(width: 4),
+                Text(
+                  '${listing['bathrooms'] ?? 0} Bath',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: NeonColors.text,
+                  ),
+                ),
+                if (listing['squareFeet'] != null) ...[
+                  const SizedBox(width: 12),
+                  const Icon(Icons.square_foot, size: 14, color: NeonColors.cyan),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${listing['squareFeet']} sqft',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: NeonColors.text,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // View button
+            Container(
+              decoration: BoxDecoration(
+                gradient: NeonColors.blueCyanGradient,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: NeonShadows.glow(NeonColors.cyan),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () {
+                    // Navigate to housing screen
+                    Navigator.pushNamed(context, '/housing');
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.map, color: Colors.black, size: 14),
+                        SizedBox(width: 6),
+                        Text(
+                          'View on Map',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),

@@ -22,6 +22,37 @@ class ZaryahApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: LuxuryTheme.theme,
       home: const SplashScreen(),
+      builder: (context, child) {
+        return ScrollConfiguration(
+          behavior: const SmoothScrollBehavior(),
+          child: child!,
+        );
+      },
+    );
+  }
+}
+
+/// Custom scroll behavior for smooth scrolling throughout the app
+class SmoothScrollBehavior extends ScrollBehavior {
+  const SmoothScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics(
+      parent: AlwaysScrollableScrollPhysics(),
+    );
+  }
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    // Use stretch indicator for iOS-like smooth overscroll
+    return StretchingOverscrollIndicator(
+      axisDirection: details.direction,
+      child: child,
     );
   }
 }

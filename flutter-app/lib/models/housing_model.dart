@@ -23,6 +23,9 @@ class HousingListing {
   final String? ownerName;
   final String? ownerProfilePicture;
 
+  // Feed-specific fields
+  final String? timeAgo;
+
   HousingListing({
     required this.id,
     required this.userId,
@@ -45,6 +48,7 @@ class HousingListing {
     required this.updatedAt,
     this.ownerName,
     this.ownerProfilePicture,
+    this.timeAgo,
   });
 
   factory HousingListing.fromJson(Map<String, dynamic> json) {
@@ -70,6 +74,7 @@ class HousingListing {
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       ownerName: json['user']?['profile']?['name'] as String?,
       ownerProfilePicture: json['user']?['profile']?['profilePicture'] as String?,
+      timeAgo: json['timeAgo'] as String?,
     );
   }
 

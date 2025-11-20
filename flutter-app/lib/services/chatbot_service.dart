@@ -25,7 +25,7 @@ class ChatbotService {
     return headers;
   }
 
-  // POST /api/chatbot/chat - Main chat endpoint with function calling
+  // POST /api/chatbot - Main chat endpoint with function calling
   static Future<ChatResponse> chat({
     required String message,
     List<Map<String, dynamic>>? conversationHistory,
@@ -37,7 +37,7 @@ class ChatbotService {
       };
 
       final response = await http.post(
-        Uri.parse('$baseUrl/chat'),
+        Uri.parse(baseUrl),
         headers: await _getHeaders(requiresAuth: true),
         body: json.encode(body),
       );
@@ -82,11 +82,15 @@ class ChatResponse {
   final String message;
   final List<FunctionCallResult>? functionCalls;
   final List<Map<String, dynamic>>? conversationHistory;
+  final String? type;
+  final List<Map<String, dynamic>>? housingListings;
 
   ChatResponse({
     required this.message,
     this.functionCalls,
     this.conversationHistory,
+    this.type,
+    this.housingListings,
   });
 
   factory ChatResponse.fromJson(Map<String, dynamic> json) {
@@ -104,15 +108,27 @@ class ChatResponse {
           .toList();
     }
 
+    List<Map<String, dynamic>>? listings;
+    if (json['listings'] != null) {
+      listings = (json['listings'] as List)
+          .map((listing) => listing as Map<String, dynamic>)
+          .toList();
+    }
+
     return ChatResponse(
-      message: json['message'] as String,
+      message: (json['message'] ?? json['response']) as String,
       functionCalls: calls,
       conversationHistory: history,
+      type: json['type'] as String?,
+      housingListings: listings,
     );
   }
 
   bool get hasFunctionCalls =>
       functionCalls != null && functionCalls!.isNotEmpty;
+
+  bool get hasHousingResults =>
+      type == 'housing_results' && housingListings != null && housingListings!.isNotEmpty;
 
   String getFunctionCallsSummary() {
     if (!hasFunctionCalls) return '';

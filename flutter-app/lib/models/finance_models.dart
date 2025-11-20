@@ -25,10 +25,12 @@ class StockQuote {
 
   factory StockQuote.fromJson(Map<String, dynamic> json) {
     return StockQuote(
-      symbol: json['symbol'] as String,
+      symbol: json['symbol']?.toString() ?? '',
       price: (json['price'] as num).toDouble(),
       change: (json['change'] as num).toDouble(),
-      changePercent: json['changePercent']?.toString() ?? '0%',
+      changePercent: (json['changePercent'] is num)
+          ? (json['changePercent'] as num).toString()
+          : json['changePercent']?.toString() ?? '0',
       volume: json['volume'] as int?,
       high: json['high'] != null ? (json['high'] as num).toDouble() : null,
       low: json['low'] != null ? (json['low'] as num).toDouble() : null,
@@ -36,7 +38,7 @@ class StockQuote {
       previousClose: json['previousClose'] != null
           ? (json['previousClose'] as num).toDouble()
           : null,
-      exchange: json['exchange'] as String?,
+      exchange: json['exchange']?.toString(),
     );
   }
 
@@ -54,6 +56,30 @@ class StockQuote {
     final sign = change >= 0 ? '+' : '';
     return '$sign$changePercent%';
   }
+
+  String get openFormatted => open != null ? '₹${open!.toStringAsFixed(2)}' : 'N/A';
+
+  String get previousCloseFormatted => previousClose != null ? '₹${previousClose!.toStringAsFixed(2)}' : 'N/A';
+
+  String get volumeFormatted {
+    if (volume == null) return 'N/A';
+    if (volume! >= 10000000) {
+      return '${(volume! / 10000000).toStringAsFixed(2)}Cr';
+    } else if (volume! >= 100000) {
+      return '${(volume! / 100000).toStringAsFixed(2)}L';
+    } else if (volume! >= 1000) {
+      return '${(volume! / 1000).toStringAsFixed(2)}K';
+    }
+    return volume.toString();
+  }
+
+  String get highFormatted => high != null ? '₹${high!.toStringAsFixed(2)}' : 'N/A';
+
+  String get lowFormatted => low != null ? '₹${low!.toStringAsFixed(2)}' : 'N/A';
+
+  String get fiftyTwoWeekHighFormatted => 'N/A'; // Would need backend support
+
+  String get fiftyTwoWeekLowFormatted => 'N/A'; // Would need backend support
 }
 
 class CurrencyRate {
@@ -71,10 +97,10 @@ class CurrencyRate {
 
   factory CurrencyRate.fromJson(Map<String, dynamic> json) {
     return CurrencyRate(
-      from: json['from'] as String,
-      to: json['to'] as String,
+      from: json['from']?.toString() ?? '',
+      to: json['to']?.toString() ?? '',
       rate: (json['rate'] as num).toDouble(),
-      timestamp: json['timestamp'] as String?,
+      timestamp: json['timestamp']?.toString(),
     );
   }
 
@@ -104,12 +130,14 @@ class CommodityPrice {
 
   factory CommodityPrice.fromJson(Map<String, dynamic> json) {
     return CommodityPrice(
-      commodity: json['commodity'] ?? 'Unknown',
+      commodity: json['commodity']?.toString() ?? 'Unknown',
       price: (json['price'] as num).toDouble(),
-      currency: json['currency'] as String? ?? 'INR',
-      unit: json['unit'] as String? ?? 'per unit',
+      currency: json['currency']?.toString() ?? 'INR',
+      unit: json['unit']?.toString() ?? 'per unit',
       change: json['change'] != null ? (json['change'] as num).toDouble() : null,
-      changePercent: json['changePercent'] as String?,
+      changePercent: (json['changePercent'] is num)
+          ? (json['changePercent'] as num).toString()
+          : json['changePercent']?.toString(),
     );
   }
 
@@ -257,12 +285,14 @@ class MarketIndex {
 
   factory MarketIndex.fromJson(Map<String, dynamic> json) {
     return MarketIndex(
-      symbol: json['symbol'] as String,
-      name: json['name'] as String,
+      symbol: json['symbol']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
       price: (json['price'] as num).toDouble(),
       change: (json['change'] as num).toDouble(),
-      changePercent: json['changePercent']?.toString() ?? '0%',
-      exchange: json['exchange'] as String?,
+      changePercent: (json['changePercent'] is num)
+          ? (json['changePercent'] as num).toString()
+          : json['changePercent']?.toString() ?? '0',
+      exchange: json['exchange']?.toString(),
     );
   }
 

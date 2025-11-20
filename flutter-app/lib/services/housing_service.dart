@@ -11,9 +11,9 @@ class HousingService {
     if (kIsWeb) {
       return 'http://localhost:3000/api/housing';
     } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000/api/housing';
+      return 'http://192.168.1.15:3000/api/housing';
     } else {
-      return 'http://127.0.0.1:3000/api/housing';
+      return 'http://192.168.1.15:3000/api/housing';
     }
   }
 

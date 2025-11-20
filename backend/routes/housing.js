@@ -215,7 +215,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const listing = await prisma.housingListing.create({
       data: {
-        userId: req.user.id,
+        userId: req.user.userId,
         title,
         monthlyPrice: parseFloat(monthlyPrice),
         locality,
@@ -266,7 +266,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Housing listing not found' });
     }
 
-    if (existingListing.userId !== req.user.id) {
+    if (existingListing.userId !== req.user.userId) {
       return res.status(403).json({ error: 'Not authorized to update this listing' });
     }
 
@@ -343,7 +343,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Housing listing not found' });
     }
 
-    if (existingListing.userId !== req.user.id) {
+    if (existingListing.userId !== req.user.userId) {
       return res.status(403).json({ error: 'Not authorized to delete this listing' });
     }
 
